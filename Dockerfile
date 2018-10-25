@@ -11,10 +11,9 @@ ADD ./src/ ./src
 ADD ./webpack.config.js ./gulpfile.js ./
 RUN yarn build:landing
 RUN mkdir publish && mkdir publish/landing
-RUN unalias mv
-RUN mv  ./landing/index.html ./landing/img ./landing/dist ./publish/landing/
+RUN cp -r ./landing/index.html ./landing/img ./landing/dist ./publish/landing/
 RUN yarn build
-RUN mv ./src ./public ./views ./dist ./node_modules ./publish/
+RUN cp -r ./src ./public ./views ./dist ./node_modules ./publish/
 
 
 FROM node:9.11-alpine
