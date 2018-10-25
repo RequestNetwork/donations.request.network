@@ -8,12 +8,11 @@
   "scripts": {
     "build": "gulp  && babel src -s -D -d dist --presets es2015,stage-0",
     "build:landing": "webpack",
-    "dev": "gulp | nodemon -w src --exec \"babel-node src --presets es2015,stage-0\"",
-    "prestart": "gulp | npm run -s build",
-    "start": "gulp | node dist",
-    "start:landing": "webpack-dev-server --open --hot --inline",
-    "test": "eslint src",
-    "watch:landing": "webpack --watch"
+    "dev": "gulp && nodemon -w src --exec \"babel-node src --presets es2015,stage-0\"",
+    "prestart": "gulp && npm run -s build",
+    "start": "gulp && node dist",
+    "start:landing": "webpack --watch",
+    "test": "eslint src"
   },
   "eslintConfig": {
     "env": {
@@ -63,6 +62,7 @@
     "gulp-sass": "4.0.1",
     "gulp-uglify": "^2.0.0",
     "nodemon": "^1.9.2",
+    "nodemon-webpack-plugin": "^3.0.1",
     "popper.js": "^1.14.4",
     "postcss-loader": "^3.0.0",
     "run-sequence": "^1.2.2",

@@ -11,7 +11,7 @@ ADD ./src/ ./src
 ADD ./webpack.config.js ./gulpfile.js ./
 RUN yarn build:landing
 RUN mkdir publish && mkdir publish/landing
-RUN cp -r ./landing/index.html ./landing/img ./landing/dist ./publish/landing/
+RUN cp -r ./landing/index.html ./landing/img ./publish/landing/
 RUN yarn build
 RUN cp -r ./src ./public ./views ./dist ./node_modules ./publish/
 

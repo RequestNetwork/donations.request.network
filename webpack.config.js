@@ -1,9 +1,12 @@
-webpack = require("webpack");
+const webpack = require("webpack");
+const path = require("path");
+const NodemonPlugin = require("nodemon-webpack-plugin"); // Ding
+
 module.exports = {
   entry: "./landing/src/app.js",
   mode: "production",
   output: {
-    path: __dirname + "/landing/dist",
+    path: path.join(__dirname, "public"),
     filename: "bundle.min.js"
   },
   module: {
@@ -19,7 +22,10 @@ module.exports = {
     ]
   },
   devServer: {
-    contentBase: "./"
+    open: true,
+    watchContentBase: true
+    // contentBase: path.join(__dirname, "landing"),
+    // publicPath: path.join(__dirname, "landing")
   },
   plugins: [
     new webpack.ProvidePlugin({
@@ -27,6 +33,10 @@ module.exports = {
       jQuery: "jquery",
       "window.jQuery": "jquery",
       Popper: ["popper.js", "default"]
+    }),
+    new NodemonPlugin({
+      script: "./dist",
+      watch: "./"
     })
   ]
 };
