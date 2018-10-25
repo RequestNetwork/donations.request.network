@@ -19,6 +19,17 @@ spec:
           image: 519161485873.dkr.ecr.eu-west-1.amazonaws.com/apps/donations
           ports:
             - containerPort: 8081
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: awsaccesskeyid
+                  key: AWS_ACCESS_KEY_ID
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: awssecretaccesskey
+                  key: AWS_SECRET_ACCESS_KEY
 
 ---
   
