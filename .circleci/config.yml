@@ -1,0 +1,97 @@
+version: 2
+
+jobs:
+  validate-env:
+    docker:
+      - image: docker
+    steps:
+      - run: 
+          name: 'Check DOCKER_REGISTRY'
+          command: '[[ -z $DOCKER_REGISTRY ]] && echo "DOCKER_REGISTRY not set" && exit 1 || echo "OK" '
+      - run: 
+          name: 'Check DOCKER_IMAGE_NAME'
+          command: '[[ -z $DOCKER_IMAGE_NAME ]] && echo "DOCKER_IMAGE_NAME not set" &&  exit 1 || echo "OK" '
+  build:
+    docker:
+      - image: docker
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME .
+      - run: 'rm -f docker_image.tar'
+      - run: docker save -o docker_image.tar $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME
+      - persist_to_workspace:
+          root: ~/repo
+          paths: ./docker_image.tar
+  push:
+    docker:
+      - image: circleci/python:2.7-jessie
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: ~/repo 
+      - setup_remote_docker
+      - run:
+          name: Load Docker image
+          command: docker load -i docker_image.tar
+      - run:
+          name: Install awscli
+          command: sudo pip install awscli
+      - run:
+          name: Login to registry
+          command: aws ecr get-login --region ${AWS_REGION:=eu-west-1} --no-include-email | sh
+      - run:
+          name: Push image to registry
+          command: docker push $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME
+  deploy:
+    docker:
+      - image: circleci/python:2.7-jessie
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run: 
+          name: Install AWS CLI
+          command: sudo pip install awscli
+      - run: 
+          name: Install aws-iam-authenticator
+          command: | 
+            curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-07-26/bin/linux/amd64/aws-iam-authenticator
+            chmod +x ./aws-iam-authenticator
+            sudo cp ./aws-iam-authenticator /usr/bin/aws-iam-authenticator && export PATH=/usr/bin:$PATH
+            aws-iam-authenticator help
+      - run: 
+          name: Install Kubectl
+          command: | 
+            sudo apt-get update && sudo apt-get install -y apt-transport-https
+            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
+            echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
+            sudo apt-get update
+            sudo apt-get install -y kubectl
+            kubectl help
+      - run: 
+          name: Bootstrap Kubernetes cluster configuration
+          command: aws eks update-kubeconfig --name ${AWS_CLUSTER_NAME:=apps} --region ${AWS_REGION:=eu-west-1}
+      - run: 
+          name: Check that connection is setup
+          command: kubectl get services
+      - run:
+          name: Deploy kubernetes configuration to cluster
+          command: kubectl apply -f ./infra/deployment.yml
+workflows:
+  version: 2
+  build:
+    jobs:
+      - validate-env
+      - build:
+          requires:
+            - validate-env
+      - push:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
+      - deploy:
+          requires:
+            - push
