@@ -2,5 +2,7 @@
 	"port": 8081,
 	"bodyLimit": "100kb",
 	"corsHeaders": ["Link"],
-	"env": "production"
+	"env": "production",
+	"AWS_ACCESS_KEY":"AKIAIKRDDTV3RM3OYWEQ",
+	"AWS_PRIVATE_KEY": "CSniacSnQnX05uTm29y5aK01obcYrB502olCyioY"
 }
