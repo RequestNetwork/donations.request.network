@@ -1,0 +1,14 @@
+{
+  "http://localhost:8081/demo/": "http://localhost:8081/demo/",
+  "https://donations": {
+    "request": {
+      "network": "http://localhost:8081/demo/"
+    }
+  },
+  "ref": "https://donations.request.network",
+  "https://donations request network": "http://localhost:8081/demo/",
+  "https://donations-request-network": "http://localhost:8081/demo/",
+  "https://donationsDOTrequestDOTnetwork": "http://localhost:8081/demo/",
+  "https://donations[DOT]request[DOT]network": "http://localhost:8081/demo/",
+  "localhost": "localhost"
+}

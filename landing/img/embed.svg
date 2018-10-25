@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="69px" height="45px" viewBox="0 0 69 45" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 50.2 (55047) - http://www.bohemiancoding.com/sketch -->
+    <title>noun_Embed_49471</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#1C82F5" offset="0%"></stop>
+            <stop stop-color="#124074" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="materials" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Desktop" transform="translate(-375.000000, -317.000000)" fill="url(#linearGradient-1)" fill-rule="nonzero">
+            <g id="noun_Embed_49471" transform="translate(375.000000, 317.000000)">
+                <path d="M51.155,5.417 L46.286,10.226 L58.711,22.495 L46.286,34.764 L51.155,39.574 L68.451,22.495 L51.155,5.417 Z M18.14,5.417 L0.844,22.495 L18.14,39.573 L23.011,34.763 L10.584,22.495 L23.011,10.226 L18.14,5.417 Z M25.876,44.382 L33.177,44.382 L42.919,0.608 L35.616,0.608 L25.876,44.382 Z" id="Shape"></path>
+            </g>
+        </g>
+    </g>
+</svg>
