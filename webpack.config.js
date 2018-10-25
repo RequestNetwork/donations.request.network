@@ -1,9 +1,9 @@
 webpack = require("webpack");
 module.exports = {
-  entry: "./src/app.js",
+  entry: "./landing/src/app.js",
   mode: "production",
   output: {
-    path: __dirname + "/dist",
+    path: __dirname + "/landing/dist",
     filename: "bundle.min.js"
   },
   module: {
