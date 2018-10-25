@@ -458,7 +458,7 @@ function requestNetworkDonations(opts) {
     opts = Object.assign(defaults, opts);
 
     var rootUrl = "https://donations.request.network/";
-    // var rootUrl = "http://79972f15.ngrok.io/";
+    
     that = this;
 
     var allCurrencies = {
