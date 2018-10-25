@@ -1,0 +1,59 @@
+version: 2
+
+jobs:
+  install:
+    docker:
+      - image: circleci/node:8
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          name: 'Install node modules'
+          command: 'yarn'
+      - persist_to_workspace:
+          root: ~/repo
+          paths: .
+  build:
+    docker:
+      - image: circleci/node:8
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: 'Build service'
+          command: 'yarn build'
+      - persist_to_workspace:
+          root: ~/repo
+          paths: ./dist
+  deploy:
+    docker:
+      - image: circleci/python:2.7-jessie
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: ~/repo
+      - run:
+          name: Install awscli
+          command: sudo pip install awscli
+      - run: 
+          name: Copy required files
+          command: mkdir publish && cp -r img index.html dist publish/
+      - deploy:
+          name: Deploy to S3
+          command:
+            aws s3 sync ./publish s3://donations.request.network --acl public-read --delete
+workflows:
+  version: 2
+  build:
+    jobs:
+      - install
+      - build:
+          requires:
+            - install
+      - deploy:
+          requires:
+            - build
+          filters:
+            branches:
+              only: master
