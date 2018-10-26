@@ -29,7 +29,7 @@ jobs:
       - checkout
       - setup_remote_docker
       - run: |
-          docker build -t $DOCKER_IMAGE_NAME
+          docker build -t $DOCKER_IMAGE_NAME .
           rm -f docker_image.tar
           docker save -o docker_image.tar $DOCKER_IMAGE_NAME
       - persist_to_workspace:
