@@ -1,15 +1,20 @@
 version: 2
 
 aliases:
-  -   &set_docker_image_name
-      run: |
-        TAG=1.0.$CIRCLE_BUILD_NUM
-        IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$TAG
-
+  - &set_environment 
+      run: 
+        name: Set Environment
+        command: |
+          echo 'export TAG="1.0.$CIRCLE_BUILD_NUM"' >> ~/.bashrc
+          echo 'export IMG_NAME="$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$TAG"' >> ~/.bashrc
+  - docker_image: &docker_image
+      image: docker
+  - python_image: &python_image
+      image: circleci/python:2.7-jessie
 jobs:
   validate-env:
     docker:
-      - image: docker
+      - *docker_image
     steps:
       - run: 
           name: 'Check DOCKER_REGISTRY'
@@ -19,21 +24,24 @@ jobs:
           command: '[[ -z $DOCKER_IMAGE_NAME ]] && echo "DOCKER_IMAGE_NAME not set" &&  exit 1 || echo "OK" '
   build:
     docker:
-      - image: docker
+      - *docker_image
     working_directory: ~/repo
     steps:
       - checkout
       - setup_remote_docker
-      - *set_docker_image_name
-      - run:  docker build -t $IMG_NAME .
-      - run: rm -f docker_image.tar
-      - run: docker save -o docker_image.tar $IMG_NAME
+      - *set_environment
+      - run: |
+          source ~/.bashrc
+          echo $IMG_NAME
+          docker build -t $IMG_NAME .
+          rm -f docker_image.tar
+          docker save -o docker_image.tar $IMG_NAME
       - persist_to_workspace:
           root: ~/repo
           paths: ./docker_image.tar
   push:
     docker:
-      - image: circleci/python:2.7-jessie
+      - *python_image
     working_directory: ~/repo
     steps:
       - attach_workspace:
@@ -48,13 +56,15 @@ jobs:
       - run:
           name: Login to registry
           command: aws ecr get-login --region ${AWS_REGION:=eu-west-1} --no-include-email | sh
-      - *set_docker_image_name
+      - *set_environment
       - run:
           name: Push image to registry
-          command: docker push $IMG_NAME
+          command: |
+            source ~/.bashrc
+            docker push $IMG_NAME
   deploy:
     docker:
-      - image: circleci/python:2.7-jessie
+      - *python_image
     working_directory: ~/repo
     steps:
       - checkout
