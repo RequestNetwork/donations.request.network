@@ -2,11 +2,8 @@ version: 2
 
 aliases:
   - &set_environment 
-      run: 
-        name: Set Environment
-        command: |
-          echo 'export TAG="1.0.$CIRCLE_BUILD_NUM"' >> ~/.bashrc
-          echo 'export IMG_NAME="$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$TAG"' >> ~/.bashrc
+      VERSION_MAJOR: 1
+      VERSION_MINOR: 0
   - docker_image: &docker_image
       image: docker
   - python_image: &python_image
@@ -25,13 +22,14 @@ jobs:
   build:
     docker:
       - *docker_image
+    environment:
+      *set_environment
     working_directory: ~/repo
     steps:
       - checkout
       - setup_remote_docker
-      - *set_environment
       - run: |
-          source ~/.bashrc
+          IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$VERSION_MAJOR.$VERSION_MINOR.$CIRCLE_BUILD_NUM
           echo $IMG_NAME
           docker build -t $IMG_NAME .
           rm -f docker_image.tar
@@ -42,6 +40,8 @@ jobs:
   push:
     docker:
       - *python_image
+    environment:
+      *set_environment
     working_directory: ~/repo
     steps:
       - attach_workspace:
@@ -56,15 +56,17 @@ jobs:
       - run:
           name: Login to registry
           command: aws ecr get-login --region ${AWS_REGION:=eu-west-1} --no-include-email | sh
-      - *set_environment
       - run:
           name: Push image to registry
           command: |
-            source ~/.bashrc
+            IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$VERSION_MAJOR.$VERSION_MINOR.$CIRCLE_BUILD_NUM
+            echo $IMG_NAME
             docker push $IMG_NAME
   deploy:
     docker:
       - *python_image
+    environment:
+      *set_environment
     working_directory: ~/repo
     steps:
       - checkout
