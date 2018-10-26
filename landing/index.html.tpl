@@ -50,7 +50,7 @@
               <a class="nav-link js-scroll-trigger" href="https://docs.request.network/integrations/request-donations" target="_blank">Documentation</a>
             </li>
             <li class="nav-item">
-              <a class="nav-link js-scroll-trigger" href="https://github.com/AdamDowson/RequestDonations" target="_blank">Github</a>
+              <a class="nav-link js-scroll-trigger" href="https://github.com/requestnetwork/donations.request.network" target="_blank">Github</a>
             </li>
             <li class="nav-item">
               <a class="nav-link js-scroll-trigger" href="#getstarted"><span class="color">Get Started</span></a>
