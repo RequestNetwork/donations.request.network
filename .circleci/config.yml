@@ -29,11 +29,9 @@ jobs:
       - checkout
       - setup_remote_docker
       - run: |
-          IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$VERSION_MAJOR.$VERSION_MINOR.$CIRCLE_BUILD_NUM
-          echo $IMG_NAME
-          docker build -t $IMG_NAME .
+          docker build -t $DOCKER_IMAGE_NAME
           rm -f docker_image.tar
-          docker save -o docker_image.tar $IMG_NAME
+          docker save -o docker_image.tar $DOCKER_IMAGE_NAME
       - persist_to_workspace:
           root: ~/repo
           paths: ./docker_image.tar
@@ -57,10 +55,11 @@ jobs:
           name: Login to registry
           command: aws ecr get-login --region ${AWS_REGION:=eu-west-1} --no-include-email | sh
       - run:
-          name: Push image to registry
+          name: Tag & Push image to registry
           command: |
             IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$VERSION_MAJOR.$VERSION_MINOR.$CIRCLE_BUILD_NUM
             echo $IMG_NAME
+            docker tag $DOCKER_IMAGE_NAME $IMG_NAME .
             docker push $IMG_NAME
   deploy:
     docker:
