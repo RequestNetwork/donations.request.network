@@ -4,16 +4,6 @@
   // Smooth scrolling using jQuery easing
   $(document).ready(function() {
     const elements = $('a.js-scroll-trigger[href*="#"]:not([href="#"])');
-    console.log(elements);
-    // elements.forEach(e =>
-    //   console.log({
-    //     pathname: location.pathname.replace(/^\//, ""),
-    //     this_pathname: this.pathname.replace(/^\//, ""),
-    //     hostname: location.hostname,
-    //     this_hostname: this.hostname,
-    //     this_hash: this.hash
-    //   })
-    // );
     elements.click(function() {
       if (
         location.pathname.replace(/^\//, "") ==
@@ -50,7 +40,6 @@
 
     // Collapse Navbar
     var navbarCollapse = function() {
-      console.log("scrolled");
       const offset = $("#mainNav").offset();
       if (offset && offset.top > 100) {
         $("#mainNav").addClass("navbar-shrink");
