@@ -11,6 +11,9 @@
     <meta name="author" content="">
     <link rel="icon" href="img/favicon.png" type="image/x-icon">
 
+    [[ for (var chunk in htmlWebpackPlugin.files.js) { ]] 
+      <script src="{{ htmlWebpackPlugin.files.js[chunk] }}"></script>
+      [[ } ]]
 
     <meta property="og:title" content="Accept cryptocurrency donations in seconds - Donations by Request"/>
     <meta property="og:description" content="Easy-to-install script to receive crypto donations the decentralized way. Start building now."/>
@@ -19,7 +22,6 @@
     <title>Accept cryptocurrency donations in seconds - Donations by Request</title>
 
     <link href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,600,700" rel="stylesheet">
-    <script src="bundle.min.js"></script>
 
     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-105153327-10"></script>
     <script>

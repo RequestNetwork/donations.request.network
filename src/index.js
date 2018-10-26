@@ -25,7 +25,7 @@ app.server = http.createServer(app);
 app.use(bodyParser.json());
 app.set('view engine', 'ejs');
 
-app.use('/', express.static('landing'));
+//app.use('/', express.static('landing'));
 app.use('/demo', express.static('public/demo'));
 app.use('/demo2', express.static('public/demo2'));
 app.use('/makerdemo', express.static('public/demo-maker'));

@@ -1,13 +1,14 @@
 const webpack = require("webpack");
 const path = require("path");
 const NodemonPlugin = require("nodemon-webpack-plugin"); // Ding
+const HtmlWebpackPlugin = require("html-webpack-plugin");
 
 module.exports = {
   entry: "./landing/src/app.js",
   mode: "production",
   output: {
-    path: path.join(__dirname, "public"),
-    filename: "bundle.min.js"
+    path: path.join(__dirname, "public", "dist"),
+    filename: "[name].[contenthash].min.js"
   },
   module: {
     rules: [
@@ -18,6 +19,16 @@ module.exports = {
       {
         test: /\.(jpg|png|woff|woff2|eot|ttf|svg)$/,
         loader: "url-loader"
+      },
+      {
+        test: /\.tpl$/,
+        loader: "ejs-loader",
+        query: {
+          interpolate: /\{\{(.+)\}\}/g,
+          escape: "<$-(.+?)$>",
+          evaluate: /\[\[(.+)\]\]/g,
+          engine: "lodash"
+        }
       }
     ]
   },
@@ -37,6 +48,13 @@ module.exports = {
     new NodemonPlugin({
       script: "./dist",
       watch: "./"
+    }),
+    new HtmlWebpackPlugin({
+      template: "./landing/index.html.tpl",
+      filename: "../index.html",
+      hash: true,
+      inject: false,
+      minify: false
     })
   ]
 };
