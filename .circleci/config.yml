@@ -1,5 +1,11 @@
 version: 2
 
+aliases:
+  -   &set_docker_image_name
+      run: |
+        TAG=1.0.$CIRCLE_BUILD_NUM
+        IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$TAG
+
 jobs:
   validate-env:
     docker:
@@ -18,9 +24,10 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker
-      - run: docker build -t $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME .
-      - run: 'rm -f docker_image.tar'
-      - run: docker save -o docker_image.tar $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME
+      - *set_docker_image_name
+      - run:  docker build -t $IMG_NAME .
+      - run: rm -f docker_image.tar
+      - run: docker save -o docker_image.tar $IMG_NAME
       - persist_to_workspace:
           root: ~/repo
           paths: ./docker_image.tar
@@ -41,9 +48,10 @@ jobs:
       - run:
           name: Login to registry
           command: aws ecr get-login --region ${AWS_REGION:=eu-west-1} --no-include-email | sh
+      - *set_docker_image_name
       - run:
           name: Push image to registry
-          command: docker push $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME
+          command: docker push $IMG_NAME
   deploy:
     docker:
       - image: circleci/python:2.7-jessie
