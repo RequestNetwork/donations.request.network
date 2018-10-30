@@ -4,7 +4,7 @@
 <head>
     <title>Request Network Donation - Thank You</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    
+
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO"
         crossorigin="anonymous">
     <link rel="stylesheet" href="css/thank-you.min.css">
@@ -22,6 +22,22 @@
         }
     %>
 
+    <script>
+        function getUrlQueryParameter(name, url) {
+            if (!url) url = location.href;
+            name = name.replace(/[\[]/, "\\\[").replace(/[\]]/, "\\\]");
+            var regexS = "[\\?&]" + name + "=([^&#]*)";
+            var regex = new RegExp(regexS);
+            var results = regex.exec(url);
+            return results == null ? null : results[1];
+        }
+
+        if (window.location.href.indexOf('signedRequest') != -1) {
+            var toRedirect = decodeURIComponent(getUrlQueryParameter('redirect'));
+            window.location.href = toRedirect;
+        }
+    </script>
+
 </head>
 
 <body>
@@ -37,53 +53,55 @@
     <div class="container mb-5">
 
         <h1 class="text-center pt-5">Thank You For Your Donation!</h1>
-        <p class="text-center pt-3 mb-4 col-lg-8 offset-lg-2">Your support goes a long way towards making a difference. By making a contribution you are not only changing lives; you are transforming futures.</p>
+        <p class="text-center pt-3 mb-4 col-lg-8 offset-lg-2">Your support goes a long way towards making a difference. By making a contribution you are not only changing lives;
+            you are transforming futures.</p>
 
-            <% if (redirect) { %>
-                <div class="text-center">
-                    <a id="return-to-site" class="btn btn-primary mb-4" href="<%= redirect %>">Return to site</a>
-                </div>
+        <% if (redirect) { %>
+            <div class="text-center">
+                <a id="return-to-site" class="btn btn-primary mb-4" href="<%= redirect %>">Return to site</a>
+            </div>
             <% } %>
 
 
-        <div class="row pt-5">
-            <div class="col-12 col-md-7">
-                <h3 class="mb-3">Transaction Details</h3>
-                <p class="mb-1">You have donated:
-                    <strong>$
-                        <%= fiat %>
-                    </strong>
-                </p>
-                <p class="mb-1">Total paid in
-                    <%= currency %>:
-                        <strong>
-                            <%= owed %>
-                        </strong>
-                </p>
-                <p class="txid-row">
-                    <span>TXID:</span>
-                    <a href="<%= etherscan_base %><%= txid %>">
-                        <%= txid %>
-                    </a>
-                </p>
+                <div class="row pt-5">
+                    <div class="col-12 col-md-7">
+                        <h3 class="mb-3">Transaction Details</h3>
+                        <p class="mb-1">You have donated:
+                            <strong>$
+                                <%= fiat %>
+                            </strong>
+                        </p>
+                        <p class="mb-1">Total paid in
+                            <%= currency %>:
+                                <strong>
+                                    <%= owed %>
+                                </strong>
+                        </p>
+                        <p class="txid-row">
+                            <span>TXID:</span>
+                            <a href="<%= etherscan_base %><%= txid %>">
+                                <%= txid %>
+                            </a>
+                        </p>
 
-                <div class="more-info-block">
-                    <p>Your transaction has been successfully processed. You can view the status of the transaction by using the TXID link above.</p>
+                        <div class="more-info-block">
+                            <p>Your transaction has been successfully processed. You can view the status of the transaction
+                                by using the TXID link above.</p>
 
-                    <p class="mb-0">
-                        <i id="txid-status" class="circle pending"></i>
-                        <span class="pending-text">Transaction pending</span>
-                        <span class="confirmed-text">Transaction confirmed</span>
-                    </p>
-                </div>
+                            <p class="mb-0">
+                                <i id="txid-status" class="circle pending"></i>
+                                <span class="pending-text">Transaction pending</span>
+                                <span class="confirmed-text">Transaction confirmed</span>
+                            </p>
+                        </div>
 
-            </div>
-            <div class="col-12 col-md-4 offset-md-1">
-                <h3 class="mb-3">Share your donation</h3>
-                <p>Help multiply the impact of your donation by sharing to your network using the links below:</p>
-                <a id="twitter-share" class="btn btn-primary share-btn mt-3 <% if (!redirect) { %> disabled <% } %>">
-                    <svg viewBox="328 355 335 276" xmlns="http://www.w3.org/2000/svg">
-                        <path d="
+                    </div>
+                    <div class="col-12 col-md-4 offset-md-1">
+                        <h3 class="mb-3">Share your donation</h3>
+                        <p>Help multiply the impact of your donation by sharing to your network using the links below:</p>
+                        <a id="twitter-share" class="btn btn-primary share-btn mt-3 <% if (!redirect) { %> disabled <% } %>">
+                            <svg viewBox="328 355 335 276" xmlns="http://www.w3.org/2000/svg">
+                                <path d="
                       M 630, 425
                       A 195, 195 0 0 1 331, 600
                       A 142, 142 0 0 0 428, 570
@@ -99,20 +117,20 @@
                       A 117, 117 0 0 0 662, 390
                       A  65,  65 0 0 1 630, 425
                       Z" style="fill:#fff;" />
-                    </svg>Share on Twitter</a>
+                            </svg>Share on Twitter</a>
 
-                <div class="or-divider mt-4 mb-4">
-                    <span>or</span>
+                        <div class="or-divider mt-4 mb-4">
+                            <span>or</span>
+                        </div>
+                        <a id="facebook-share" class="btn btn-primary share-btn <% if (!redirect) { %> disabled <% } %>">
+                            <svg viewBox="0 0 12 12" preserveAspectRatio="xMidYMid meet">
+                                <path class="svg-icon-path" d="M9.1,0.1V2H8C7.6,2,7.3,2.1,7.1,2.3C7,2.4,6.9,2.7,6.9,3v1.4H9L8.8,6.5H6.9V12H4.7V6.5H2.9V4.4h1.8V2.8 c0-0.9,0.3-1.6,0.7-2.1C6,0.2,6.6,0,7.5,0C8.2,0,8.7,0,9.1,0.1z"></path>
+                            </svg>Share on Facebook
+                        </a>
+
+
+                    </div>
                 </div>
-                <a id="facebook-share" class="btn btn-primary share-btn <% if (!redirect) { %> disabled <% } %>">
-                    <svg viewBox="0 0 12 12" preserveAspectRatio="xMidYMid meet">
-                        <path class="svg-icon-path" d="M9.1,0.1V2H8C7.6,2,7.3,2.1,7.1,2.3C7,2.4,6.9,2.7,6.9,3v1.4H9L8.8,6.5H6.9V12H4.7V6.5H2.9V4.4h1.8V2.8 c0-0.9,0.3-1.6,0.7-2.1C6,0.2,6.6,0,7.5,0C8.2,0,8.7,0,9.1,0.1z"></path>
-                    </svg>Share on Facebook
-                </a>
-
-
-            </div>
-        </div>
 
 
     </div>

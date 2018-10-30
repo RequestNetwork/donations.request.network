@@ -837,7 +837,7 @@ function requestNetworkDonations(opts) {
             '<p class="mb-1">Conversion rate:' +
             '<strong id="request-donations-rate"></strong>' +
             '</p>' +
-            '<p class="mt-0 mb-0">Total owed:' +
+            '<p class="mt-0 mb-0">Total to donate:' +
             '<strong id="request-donations-total"></strong>' +
             '</p>' +
         '</div>' +
