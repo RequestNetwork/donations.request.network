@@ -5,7 +5,9 @@ import bodyParser from 'body-parser';
 import config from './config.json';
 import Store from 'data-store';
 import AWS from 'aws-sdk';
+import {version} from '../package.json';
 const store = new Store({ path: 'public/e515d5eb-9320-49c0-a175-126b441ec0d7.json' });
+console.log(`App version = ${version}`);
 
 AWS.config.update({ accessKeyId: config.AWS_ACCESS_KEY, secretAccessKey: config.AWS_PRIVATE_KEY });
 

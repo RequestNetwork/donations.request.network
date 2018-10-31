@@ -1,9 +1,6 @@
 version: 2
 
 aliases:
-  - &set_environment 
-      VERSION_MAJOR: 1
-      VERSION_MINOR: 0
   - docker_image: &docker_image
       image: docker
   - python_image: &python_image
@@ -22,8 +19,6 @@ jobs:
   build:
     docker:
       - *docker_image
-    environment:
-      *set_environment
     working_directory: ~/repo
     steps:
       - checkout
@@ -38,8 +33,6 @@ jobs:
   push:
     docker:
       - *python_image
-    environment:
-      *set_environment
     working_directory: ~/repo
     steps:
       - attach_workspace:
@@ -57,17 +50,21 @@ jobs:
       - run:
           name: Tag & Push image to registry
           command: |
-            IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$VERSION_MAJOR.$VERSION_MINOR.$CIRCLE_BUILD_NUM
+            APP_VERSION=$(cat package.json | jq '.version' --raw-output)
+            VERSION="${APP_VERSION}.${CIRCLE_BUILD_NUM}"
+            IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$VERSION
             echo $IMG_NAME
             docker tag $DOCKER_IMAGE_NAME $IMG_NAME
             docker push $IMG_NAME
             docker tag $DOCKER_IMAGE_NAME $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:latest
             docker push $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:latest
+            echo $IMG_NAME > image_id.txt
+      - persist_to_workspace:
+          root: ~/repo
+          paths: ./image_id.txt
   deploy:
     docker:
       - *python_image
-    environment:
-      *set_environment
     working_directory: ~/repo
     steps:
       - checkout
@@ -94,11 +91,17 @@ jobs:
           name: Bootstrap Kubernetes cluster configuration
           command: aws eks update-kubeconfig --name ${AWS_CLUSTER_NAME:=apps} --region ${AWS_REGION:=eu-west-1}
       - run: 
-          name: Check that connection is setup
-          command: kubectl get services
-      - run:
-          name: Deploy kubernetes configuration to cluster
-          command: kubectl apply -f ./infra/deployment.yml --namespace=production
+          name: Update Image
+          command: |
+            read -r IMG < image_id.txt
+            kubectl set image --namespace=production deployment.apps/donations-deployment donations=$IMG
+      # - run: 
+      #     name: Check that connection is setup
+      #     command: kubectl get services
+      # - run:
+      #     name: Deploy kubernetes configuration to cluster
+      #     command: kubectl apply -f ./infra/deployment.yml --namespace=production
+      
 workflows:
   version: 2
   build:
@@ -110,9 +113,9 @@ workflows:
       - push:
           requires:
             - build
-          filters:
-            branches:
-              only: master
+          # filters:
+          #   branches:
+          #     only: master
       - deploy:
           requires:
             - push
