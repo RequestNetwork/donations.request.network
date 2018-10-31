@@ -29,7 +29,9 @@ jobs:
           docker save -o docker_image.tar $DOCKER_IMAGE_NAME
       - persist_to_workspace:
           root: ~/repo
-          paths: ./docker_image.tar
+          paths: 
+            - ./docker_image.tar
+            - ./package.json
   push:
     docker:
       - *python_image
