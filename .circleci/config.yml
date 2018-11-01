@@ -71,7 +71,6 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/repo
-      - checkout
       - run:
           name: Install AWS CLI
           command: sudo pip install awscli
