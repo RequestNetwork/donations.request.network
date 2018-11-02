@@ -116,9 +116,9 @@ workflows:
       - push:
           requires:
             - build
-          # filters:
-          #   branches:
-          #     only: master
+          filters:
+            branches:
+              only: master
       - deploy:
           requires:
             - push
