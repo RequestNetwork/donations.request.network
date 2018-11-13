@@ -12,7 +12,8 @@
     "prestart": "gulp && npm run -s build",
     "start": "gulp && node dist",
     "start:landing": "webpack --watch",
-    "test": "eslint src"
+    "test": "eslint src",
+    "format": "prettier --write 'src/*.js'"
   },
   "eslintConfig": {
     "env": {
@@ -27,6 +28,20 @@
       "no-console": 0,
       "no-unused-vars": 1
     }
+  },
+  "prettier": {
+    "singleQuote": false
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged"
+    }
+  },
+  "lint-staged": {
+    "*.{js,json,css,md}": [
+      "prettier --write",
+      "git add"
+    ]
   },
   "dependencies": {
     "aws-sdk": "^2.342.0",
@@ -63,10 +78,12 @@
     "html-webpack-plugin": "^3.2.0",
     "jquery": "3.3.1",
     "jquery.easing": "^1.4.1",
+    "lint-staged": "^8.0.4",
     "nodemon": "^1.9.2",
     "nodemon-webpack-plugin": "^3.0.1",
     "popper.js": "^1.14.4",
     "postcss-loader": "^3.0.0",
+    "prettier": "^1.15.2",
     "run-sequence": "^1.2.2",
     "sass-loader": "^7.1.0",
     "style-loader": "^0.23.1",
