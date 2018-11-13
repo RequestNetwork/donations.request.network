@@ -12,7 +12,7 @@ export default class AnalyticsManager {
     this.log = this.log.bind(this);
     this.load = this.load.bind(this);
     this.persist = this.persist.bind(this);
-    const frequencyMinute = +config.persistFrequencyMinutes || 0.1;
+    const frequencyMinute = +config.persistFrequencyMinutes || 5;
     setTimeout(this.persist, frequencyMinute * 60 * 1000);
   }
 
