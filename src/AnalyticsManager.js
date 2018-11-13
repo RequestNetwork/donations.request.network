@@ -13,7 +13,7 @@ export default class AnalyticsManager {
     this.load = this.load.bind(this);
     this.persist = this.persist.bind(this);
     const frequencyMinute = +config.persistFrequencyMinutes || 5;
-    setTimeout(this.persist, frequencyMinute * 60 * 1000);
+    setInterval(this.persist, frequencyMinute * 60 * 1000);
   }
 
   async load() {
