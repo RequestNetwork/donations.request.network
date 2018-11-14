@@ -27,7 +27,9 @@ export default class AnalyticsManager {
   }
 
   log(referer) {
-    store.union("sites", new URL(referer).hostname);
+    const hostname = new URL(referer).hostname;
+    //console.log(`logging ${referer} =>  ${hostname}`);
+    store.union("sites", hostname);
   }
 
   async persist() {

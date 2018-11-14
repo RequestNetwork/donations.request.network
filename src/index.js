@@ -15,7 +15,6 @@ app.server = http.createServer(app);
 app.use(bodyParser.json());
 app.set("view engine", "ejs");
 
-app.use(express.static("public"));
 app.use("/demo", express.static("public/demo"));
 app.use("/demo2", express.static("public/demo2"));
 app.use("/makerdemo", express.static("public/demo-maker"));
@@ -32,15 +31,16 @@ app.get("/thank-you", function(req, res) {
 
 app.use(function(req, res, next) {
   const referer = req.header("Referer");
-  if (
-    req.originalUrl == "/donate.js" &&
-    referer &&
-    referer != "https://donations.request.network/donate.js"
-  ) {
-    analytics.log(referer);
+  if (req.originalUrl == "/donate.js") {
+    if (referer && referer != "https://donations.request.network/donate.js") {
+      analytics.log(referer);
+    } else {
+      console.log(req.headers);
+    }
   }
   next();
 });
+app.use(express.static("public"));
 
 app.use(function(err, req, res, next) {
   res.send("500" + err);
