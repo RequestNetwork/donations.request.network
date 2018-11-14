@@ -2,6 +2,7 @@ const webpack = require("webpack");
 const path = require("path");
 const NodemonPlugin = require("nodemon-webpack-plugin"); // Ding
 const HtmlWebpackPlugin = require("html-webpack-plugin");
+const WebpackAutoInjectVersion = require("webpack-auto-inject-version");
 
 module.exports = {
   entry: "./landing/src/app.js",
@@ -55,6 +56,7 @@ module.exports = {
       hash: true,
       inject: false,
       minify: false
-    })
+    }),
+    new WebpackAutoInjectVersion()
   ]
 };
