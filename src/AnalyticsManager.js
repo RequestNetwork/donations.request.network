@@ -22,7 +22,7 @@ export default class AnalyticsManager {
     //Fetch the stores.json from AWS and store in the local cache
     const data = await s3.getObject(params).promise();
     const logs = JSON.parse(data.Body.toString());
-    store.set(logs);
+    store.union("sites", logs.sites);
     console.log("logs loaded");
   }
 
