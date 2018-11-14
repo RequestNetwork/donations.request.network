@@ -1,0 +1,9 @@
+{
+  "port": 8081,
+  "bodyLimit": "100kb",
+  "corsHeaders": ["Link"],
+  "env": "production",
+  "bucketName": "donations-logs",
+  "bucketKey": "stores.json",
+  "logPath": "public/e515d5eb-9320-49c0-a175-126b441ec0d7.json"
+}
