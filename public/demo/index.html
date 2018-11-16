@@ -348,12 +348,12 @@
         </button>
 
 
-        <script type="text/javascript" src="https://donations.request.network/donate.js"></script>
+        <script type="text/javascript" src="http://localhost:8081/donate-main.js"></script>
         <script type="text/javascript">
           var requestDonations = new requestNetworkDonations({
             address: '0x6e347bf41ee62109a76b29e859a58d2bd3374e88',
-            currencies: ['ETH', 'REQ', 'DAI', 'OMG', 'KNC', 'DGX', 'KIN', 'BNB', 'BAT', 'ZRX', 'LINK'],
-            max_amount: 200
+            max_amount: 200,
+            network: 4
           });
           requestDonations.start();
         </script>
