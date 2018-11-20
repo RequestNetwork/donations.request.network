@@ -296,7 +296,7 @@
   text-align: center;
 }
 
-.request-modal-box .request-donations-total {
+#request-payment-panel .request-donations-total {
   font-size: 16px;
   font-weight: 600;
   color: #3d4f7a;
@@ -524,6 +524,7 @@
   width: 50%;
   display: inline-block;
   padding: 0 14px;
+  margin-top: 16px;
 }
 
 .request-n-payment-button {
@@ -533,6 +534,11 @@
   border: 1px solid #E9EAF2;
   border-radius: 3px;
   cursor: pointer;
+}
+
+.request-n-payment-button.disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .request-n-payment-button:hover, .request-n-payment-button.active {
@@ -708,6 +714,7 @@
   background-repeat: no-repeat;
   display: inline-block;
 }
+
 .request-payment-icon--bat {
   width: 32px;
   height: 32px;
@@ -777,25 +784,31 @@
 .request-payment-icon--req-large {
   width: 28px;
   height: 40px;
-  background-position: -131px -89px;
+  background-position: -173px -5px;
 }
 
 .request-payment-icon--zrx {
   width: 32px;
   height: 32px;
-  background-position: -5px -139px;
+  background-position: -131px -89px;
 }
 
 .request-payment-icon--ledger {
   width: 26px;
   height: 26px;
-  background-position: -169px -89px;
+  background-position: -173px -55px;
 }
 
 .request-payment-icon--metamask {
   width: 26px;
   height: 27px;
-  background-position: -169px -125px;
+  background-position: -173px -91px;
+}
+
+.request-payment-icon--qr {
+  width: 26px;
+  height: 26px;
+  background-position: -173px -128px;
 }
 
 
