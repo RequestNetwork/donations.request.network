@@ -296,14 +296,14 @@
   text-align: center;
 }
 
-#request-payment-panel .request-donations-total {
+#request-confirmation-panel .request-donations-total, #request-payment-choices .request-donations-total {
   font-size: 16px;
   font-weight: 600;
   color: #3d4f7a;
   margin-top: 2px;
 }
 
-.request-modal-box .request-timer-tag {
+.request-modal-box .request-status-tag {
   background: #eebe4c;
   color: #fff;
   padding: 8px 18px;
@@ -314,11 +314,11 @@
   margin-top: 20px;
 }
 
-.request-timer-tag.success {
+.request-status-tag.success {
   background: #3fdb69;
 }
 
-.request-timer-tag.error {
+.request-status-tag.error {
   background: #d9534f;
 }
 
@@ -444,6 +444,12 @@
 .clearfix {
   zoom: 1; /* For IE 6/7 (trigger hasLayout) */
 }
+.right {
+  float: right !important;
+}
+.left {
+  float: left !important;
+}
 
 /* Modal Content Styling */
 
@@ -504,15 +510,31 @@
   font-size: 16px;
 }
 
-.request-subtitle {
+.request-subtitle, .request-subtitle span {
   margin-bottom: 10px;
   color: #617b9f;
   font-weight: 600;
   font-size: 18px;
 }
 
-.request-subtitle.rq-dark {
+.rq-dark, .request-subtitle.rq-dark {
   color: #3d4f7a;
+}
+
+a.rq-dark:hover {
+  color: #101843;
+}
+
+.rq-light {
+  color: #3775F4;
+}
+
+#request-receipt-date {
+  font-weight: 400;
+}
+
+a.rq-light:hover {
+  color: #2d63d2;
 }
 
 #request-payment-buttons {

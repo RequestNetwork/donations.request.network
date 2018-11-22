@@ -441,9 +441,9 @@
 var triggerButton = document.getElementById('requestDonationTrigger');
 var amountTiles = document.getElementsByClassName('request-tile-amount');
 var currencyTiles = document.getElementsByClassName('request-tile-currency');
-var customAmountButton, customAmountInput, proceedButton, closeIcon, conversionRate, total, totalFIAT, timerSelector;
+var customAmountButton, customAmountInput, proceedButton, closeIcon, conversionRate, total, totalFIAT, receiptDate, saveReceiptLink;
 var selectionPanel, paymentPanel, confirmationPanel, modalFooter;
-var metamaskButton, ledgerButton;
+var metamaskButton, ledgerButton, qrButton;
 var that;
 var selectedAmount = '10', selectedCurrency = 'ETH', totalOwed, network = 1, maxDonationAmount, transactionData;
 var conversionRates = [];
@@ -568,7 +568,8 @@ function requestNetworkDonations(opts) {
         conversionRate = document.getElementById('request-donations-rate');
         total = document.getElementsByClassName('request-donations-total');
         totalFIAT = document.getElementsByClassName('request-donations-total-fiat');
-        timerSelector = document.getElementById('request-rn-timer');
+        saveReceiptLink = document.getElementById('request-save-receipt-link');
+        receiptDate = document.getElementById('request-receipt-date');
 
         selectionPanel = document.getElementById('request-selection-panel');
         paymentPanel = document.getElementById('request-payment-panel');
@@ -576,6 +577,7 @@ function requestNetworkDonations(opts) {
 
         metamaskButton = document.getElementById('request-n-payment-button-metamask');
         ledgerButton = document.getElementById('request-n-payment-button-ledger');
+        qrButton = document.getElementById('request-n-payment-button-qr');
 
         this.setInnerHtmlByClass(totalFIAT, selectedAmount + ' USD');
     }
@@ -637,10 +639,10 @@ function requestNetworkDonations(opts) {
         ledger.comm_u2f.create_async().then(function (comm) {
             var eth = new ledger.eth(comm);
             eth.getAddress_async("44'/60'/0'/0'/0").then(
-                function (result) { 
-                    console.log(result); 
-                }).fail(function (error) { 
-                    console.log(error); 
+                function (result) {
+                    console.log(result);
+                }).fail(function (error) {
+                    console.log(error);
                     ledgerButton.classList.add('disabled');
                 });
         });
@@ -659,6 +661,8 @@ function requestNetworkDonations(opts) {
         var params = {
             'currency': selectedCurrency
         }
+
+        that.setInnerHtmlByClass(totalFIAT, selectedAmount + ' USD');
 
         if (conversionRates[selectedCurrency]) {
             var rate = conversionRates[selectedCurrency];
@@ -756,8 +760,8 @@ function requestNetworkDonations(opts) {
                 that.loadJS('https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js');
                 that.loadJS(rootUrl + 'js/ledger.min.js');
                 that.loadJS(rootUrl + 'js/qr.min.js');
-                that.startTimer();
                 that.generateRequest();
+                that.setReceiptDate();
             }
         });
 
@@ -792,28 +796,37 @@ function requestNetworkDonations(opts) {
 
         metamaskButton.addEventListener('click', function () {
             if (typeof web3 !== 'undefined') {
-                window.web3 = new Web3(web3.currentProvider);
+                if (web3.eth.accounts[0] != null) {
+                    window.web3 = new Web3(web3.currentProvider);
 
-                var totalOwedWithFee = that.addTransactionFee(totalOwed);
-
-                var totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
-
-                web3.eth.sendTransaction({
-                    from: web3.eth.accounts[0],
-                    to: requestContractAddress,
-                    value: totalOwedWei,
-                    data: transactionData
-                }, function (error, result) {
-                    if (!error && result != undefined) {
-                        selectionPanel.classList.add('hidden');
-                        paymentPanel.classList.add('hidden');
-                        confirmationPanel.classList.remove('hidden');
-                    }
-                });
-
+                    var totalOwedWithFee = that.addTransactionFee(totalOwed);
+    
+                    var totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
+    
+                    web3.eth.sendTransaction({
+                        from: web3.eth.accounts[0],
+                        to: requestContractAddress,
+                        value: totalOwedWei,
+                        data: transactionData
+                    }, function (error, result) {
+                        if (!error && result != undefined) {
+                            selectionPanel.classList.add('hidden');
+                            paymentPanel.classList.add('hidden');
+                            confirmationPanel.classList.remove('hidden');
+                            that.setSaveReceiptLink(result);
+                        }
+                    });
+                }
+                else {
+                    alert('Please login to MetaMask');
+                }
             } else {
                 alert('You don\'t have MetaMask installed');
             }
+        });
+
+        qrButton.addEventListener('click', function () {
+
         });
     }
 
@@ -848,27 +861,6 @@ function requestNetworkDonations(opts) {
         }, 60 * 2000); // 2 minutes
     }
 
-    this.startTimer = function () {
-        var fifteenMinutes = 60 * 15;
-        var duration = fifteenMinutes;
-        var timer = duration, minutes, seconds;
-        setInterval(function () {
-            minutes = parseInt(timer / 60, 10)
-            seconds = parseInt(timer % 60, 10);
-
-            minutes = minutes < 10 ? "0" + minutes : minutes;
-            seconds = seconds < 10 ? "0" + seconds : seconds;
-
-            timerSelector.textContent = minutes + ":" + seconds + 's';
-
-            if (--timer < 0) {
-                // timer = duration;
-                timerSelector.classList.add('error');
-                timerSelector.innerHTML = 'Expired';
-            }
-        }, 1000);
-    }
-
     this.filterMaxAmounts = function () {
 
     }
@@ -883,8 +875,8 @@ function requestNetworkDonations(opts) {
         this.filterMaxAmounts();
 
         //Debugging
-        // this.fetchRates();
-        // donationsModal.open();
+        this.fetchRates();
+        donationsModal.open();
     }
 
     this.fetchContentHtml = function () {
@@ -976,7 +968,7 @@ function requestNetworkDonations(opts) {
 
     this.generatePaymentChoicesPageHtml = function () {
 
-        var html = '<div id="request-payment-panel" class="hidden">' +
+        var html = '<div id="request-payment-panel"  class="hidden">' +
             '<div class="request-modal-box__header">' +
             '<span class="request-h1 request-modal-title">Make a donation today</span>' +
             '<span class="request-h3 request-modal-subtitle">Powered by Request Network</span>' +
@@ -986,7 +978,7 @@ function requestNetworkDonations(opts) {
             '<div class="request-boxed mb-5">' +
             '<div class="request-donations-total-fiat request-lg-heading"></div>' +
             '<div class="request-donations-total"></div>' +
-            '<div id="request-rn-timer" class="request-timer-tag">15:00s</div>' +
+            '<div id="request-rn-timer" class="request-status-tag">Pending</div>' +
             '</div>' +
             '<div id="request-payment-buttons">' +
             '<div class="request-subtitle rq-dark text-center">Send your payment using any of the following methods</div>' +
@@ -1022,17 +1014,40 @@ function requestNetworkDonations(opts) {
             '<span class="request-h3 request-modal-subtitle">Your support goes a long way towards making a difference</span>' +
             '</div>' +
             '<div class="request-modal-box__body">' +
-            '<p class="request-subtitle mb-3">Your receipt</p>' +
+            '<p class="request-subtitle mb-3">Your receipt<span href="#" id="request-receipt-date" class="right">dd/mm/YYYY</span></p>' +
             '<div class="request-boxed mb-5">' +
             '<div class="request-donations-total-fiat request-lg-heading"></div>' +
             '<div class="request-donations-total"></div>' +
-            '<div class="request-timer-tag success">Paid</div>' +
+            '<div class="request-status-tag success">Paid</div>' +
             '</div>' +
-            '<div class="request-subtitle rq-dark text-center mb-1">Your transaction has been successfully processed</div>' +
-            '<div class="request-subtitle rq-dark text-center"><a href="#">Track your transaction</a></div>' +
+            '<div class="request-subtitle rq-dark text-center mb-2">Your transaction has been successfully processed</div>' +
+            '<div class="request-subtitle text-center mb-3"><a target="_blank" id="request-save-receipt-link" class="rq-light" href="#">Save your receipt</a></div>' +
             '</div>' +
             '</div>';
 
         return html;
+    }
+
+    this.setReceiptDate = function () {
+        var today = new Date();
+        var dd = today.getDate();
+        var mm = today.getMonth() + 1; //January is 0!
+
+        var yyyy = today.getFullYear();
+        if (dd < 10) {
+            dd = '0' + dd;
+        }
+        if (mm < 10) {
+            mm = '0' + mm;
+        }
+        var today = dd + '/' + mm + '/' + yyyy;
+
+        receiptDate.innerHTML = today;
+    }
+
+    this.setSaveReceiptLink = function (txid) {
+        var currentBaseUrl = [location.protocol, '//', location.host].join('');
+        var link = 'https://donations.request.network/thank-you?owed=' + totalOwed + '&currency=' + selectedCurrency + '&fiat=' + selectedAmount + '&redirect=' + currentBaseUrl + '&network=' + network + '&txid=' + txid;
+        saveReceiptLink.href = link;
     }
 }
