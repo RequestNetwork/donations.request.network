@@ -30,6 +30,14 @@
   margin-bottom: 48px !important;
 }
 
+.ml-1 {
+  margin-left: 6px !important;
+}
+
+.mr-1 {
+  margin-right: 6px !important;
+}
+
 .text-center {
   text-align: center;
 }
@@ -304,6 +312,7 @@
 }
 
 .request-modal-box .request-status-tag {
+  position: relative;
   background: #eebe4c;
   color: #fff;
   padding: 8px 18px;
@@ -312,6 +321,20 @@
   font-size: 16px;
   display: inline-block;
   margin-top: 20px;
+  transition: padding .4s ease;
+}
+
+#request-transaction-status-tag {
+  padding-right: 44px;
+}
+
+#request-transaction-status-tag.success {
+  padding-right: 18px;
+}
+
+#request-transaction-status-tag .spinner {
+  opacity: 1;
+  right: 13px;
 }
 
 .request-status-tag.success {

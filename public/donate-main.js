@@ -441,16 +441,18 @@
 var triggerButton = document.getElementById('requestDonationTrigger');
 var amountTiles = document.getElementsByClassName('request-tile-amount');
 var currencyTiles = document.getElementsByClassName('request-tile-currency');
-var customAmountButton, customAmountInput, proceedButton, closeIcon, conversionRate, total, totalFIAT, receiptDate, saveReceiptLink;
+var customAmountButton, customAmountInput, proceedButton, closeIcon, conversionRate, total, totalFIAT, receiptDate, saveReceiptLink, anotherDonationLink, requestTransactionStatusTag;
 var selectionPanel, paymentPanel, confirmationPanel, modalFooter;
 var metamaskButton, ledgerButton, qrButton;
 var that;
-var selectedAmount = '10', selectedCurrency = 'ETH', totalOwed, network = 1, maxDonationAmount, transactionData;
+var selectedAmount = '10', selectedCurrency = 'ETH', totalOwed, network = 1, maxDonationAmount, transactionData, receiptDateValue;
 var conversionRates = [];
 var filteredCurrencies = [];
 var presetAmounts = [5, 10, 25, 50, 100, 250];
 var address;
 var PAYMENT_ROUND_AMOUNT = 6;
+var COOKIE_NAME = 'REQUEST_TXID_COOKIE';
+var checkTxidInterval;
 
 var requestContractAddress = '0xd88ab9b1691340E04a5BBf78529c11d592d35f57';
 
@@ -569,7 +571,9 @@ function requestNetworkDonations(opts) {
         total = document.getElementsByClassName('request-donations-total');
         totalFIAT = document.getElementsByClassName('request-donations-total-fiat');
         saveReceiptLink = document.getElementById('request-save-receipt-link');
+        anotherDonationLink = document.getElementById('request-donate-again-link');
         receiptDate = document.getElementById('request-receipt-date');
+        requestTransactionStatusTag = document.getElementById('request-transaction-status-tag');
 
         selectionPanel = document.getElementById('request-selection-panel');
         paymentPanel = document.getElementById('request-payment-panel');
@@ -579,7 +583,38 @@ function requestNetworkDonations(opts) {
         ledgerButton = document.getElementById('request-n-payment-button-ledger');
         qrButton = document.getElementById('request-n-payment-button-qr');
 
+        if (network == 4) {
+            ledgerButton.classList.add('disabled');
+        }
+
         this.setInnerHtmlByClass(totalFIAT, selectedAmount + ' USD');
+
+        if (this.getCookie(COOKIE_NAME) != null) {
+            this.showOldReceiptFromCookie(this.getCookie(COOKIE_NAME));
+        }
+    }
+
+    this.showOldReceiptFromCookie = function (cookie) {
+        var cookieJson = JSON.parse(cookie);
+
+        totalOwed = cookieJson.amount_crypto;
+        selectedCurrency = cookieJson.currency;
+        selectedAmount = cookieJson.amount_fiat;
+        network = cookieJson.network;
+        var txid = cookieJson.txid;
+
+        this.setSaveReceiptLink(txid);
+        this.setInnerHtmlByClass(totalFIAT, selectedAmount + ' USD');
+        this.setInnerHtmlByClass(total, totalOwed + ' ' + selectedCurrency);
+        receiptDate.innerHTML = cookieJson.date;
+
+        selectionPanel.classList.add('hidden');
+        paymentPanel.classList.add('hidden');
+        confirmationPanel.classList.remove('hidden');
+        modalFooter[0].classList.add('hidden');
+        requestTransactionStatusTag.innerHTML = 'Confirmed';
+        requestTransactionStatusTag.classList.add('success');
+        this.checkTxidStatus(txid);
     }
 
     this.jsonToQueryString = function (json) {
@@ -668,7 +703,7 @@ function requestNetworkDonations(opts) {
             var rate = conversionRates[selectedCurrency];
             conversionRate.innerHTML = rate;
             totalOwed = parseFloat((rate * selectedAmount).toFixed(PAYMENT_ROUND_AMOUNT)).toString();
-            that.setInnerHtmlByClass(total, totalOwed + ' ' + selectedCurrency)
+            that.setInnerHtmlByClass(total, totalOwed + ' ' + selectedCurrency);
         } else {
             var signUrl = 'https://sign.wooreq.com/rates' + that.jsonToQueryString(params);
 
@@ -796,30 +831,44 @@ function requestNetworkDonations(opts) {
 
         metamaskButton.addEventListener('click', function () {
             if (typeof web3 !== 'undefined') {
-                if (web3.eth.accounts[0] != null) {
-                    window.web3 = new Web3(web3.currentProvider);
 
-                    var totalOwedWithFee = that.addTransactionFee(totalOwed);
-    
-                    var totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
-    
-                    web3.eth.sendTransaction({
-                        from: web3.eth.accounts[0],
-                        to: requestContractAddress,
-                        value: totalOwedWei,
-                        data: transactionData
-                    }, function (error, result) {
-                        if (!error && result != undefined) {
-                            selectionPanel.classList.add('hidden');
-                            paymentPanel.classList.add('hidden');
-                            confirmationPanel.classList.remove('hidden');
-                            that.setSaveReceiptLink(result);
+                web3.version.getNetwork((err, netId) => {
+                    if (netId != network) {
+                        if (network == 4) {
+                            alert('Please change your MetaMask network to Rinkeby.');
                         }
-                    });
-                }
-                else {
-                    alert('Please login to MetaMask');
-                }
+                        else {
+                            alert('Please change your MetMask network to Mainnet.');
+                        }
+                    } else {
+                        if (web3.eth.accounts[0] != null) {
+                            window.web3 = new Web3(web3.currentProvider);
+
+                            var totalOwedWithFee = that.addTransactionFee(totalOwed);
+
+                            var totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
+
+                            web3.eth.sendTransaction({
+                                from: web3.eth.accounts[0],
+                                to: requestContractAddress,
+                                value: totalOwedWei,
+                                data: transactionData
+                            }, function (error, txid) {
+                                if (!error && txid != undefined) {
+                                    selectionPanel.classList.add('hidden');
+                                    paymentPanel.classList.add('hidden');
+                                    confirmationPanel.classList.remove('hidden');
+                                    that.setSaveReceiptLink(txid);
+                                    that.savePaymentCookie(txid);
+                                    that.checkTxidStatus(txid);
+                                }
+                            });
+                        }
+                        else {
+                            alert('Please login to MetaMask');
+                        }
+                    }
+                });
             } else {
                 alert('You don\'t have MetaMask installed');
             }
@@ -828,6 +877,59 @@ function requestNetworkDonations(opts) {
         qrButton.addEventListener('click', function () {
 
         });
+
+        anotherDonationLink.addEventListener('click', function () {
+            that.clearCookie(COOKIE_NAME);
+            selectionPanel.classList.remove('hidden');
+            paymentPanel.classList.add('hidden');
+            confirmationPanel.classList.add('hidden');
+            modalFooter[0].classList.remove('hidden');
+            currencyTiles[0].click();
+        });
+    }
+
+    this.savePaymentCookie = function (txid) {
+        var cookieData = {
+            'txid': txid,
+            'amount_fiat': selectedAmount,
+            'amount_crypto': totalOwed,
+            'currency': selectedCurrency,
+            'network': network,
+            'date': receiptDateValue
+        };
+
+        this.setCookie(COOKIE_NAME, JSON.stringify(cookieData), 5);
+    }
+
+    this.setCookie = function (name, value, days) {
+        var expires = "";
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+    }
+
+    this.getCookie = function (name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+
+    this.clearCookie = function (name) {
+        document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    }
+
+    this.trackTransaction = function (txid) {
+        if (typeof web3 !== 'undefined') {
+
+        }
     }
 
     this.addTransactionFee = function (amount) {
@@ -968,7 +1070,7 @@ function requestNetworkDonations(opts) {
 
     this.generatePaymentChoicesPageHtml = function () {
 
-        var html = '<div id="request-payment-panel"  class="hidden">' +
+        var html = '<div id="request-payment-panel" class="hidden">' +
             '<div class="request-modal-box__header">' +
             '<span class="request-h1 request-modal-title">Make a donation today</span>' +
             '<span class="request-h3 request-modal-subtitle">Powered by Request Network</span>' +
@@ -1018,10 +1120,14 @@ function requestNetworkDonations(opts) {
             '<div class="request-boxed mb-5">' +
             '<div class="request-donations-total-fiat request-lg-heading"></div>' +
             '<div class="request-donations-total"></div>' +
-            '<div class="request-status-tag success">Paid</div>' +
+            '<div id="request-transaction-status-tag" class="request-status-tag">Processing<i class="spinner"></i></div>' +
             '</div>' +
             '<div class="request-subtitle rq-dark text-center mb-2">Your transaction has been successfully processed</div>' +
-            '<div class="request-subtitle text-center mb-3"><a target="_blank" id="request-save-receipt-link" class="rq-light" href="#">Save your receipt</a></div>' +
+            '<div class="request-subtitle text-center mb-3">' +
+                '<a target="_blank" id="request-save-receipt-link" class="rq-light" href="#">Save your receipt</a>' +
+                '<span class="rq-dark mr-1 ml-1">or</span>' +
+                '<a href="#" id="request-donate-again-link" class="rq-light">Make another donation</a>'
+            '</div>' +
             '</div>' +
             '</div>';
 
@@ -1043,11 +1149,37 @@ function requestNetworkDonations(opts) {
         var today = dd + '/' + mm + '/' + yyyy;
 
         receiptDate.innerHTML = today;
+        receiptDateValue = today;
     }
 
     this.setSaveReceiptLink = function (txid) {
         var currentBaseUrl = [location.protocol, '//', location.host].join('');
         var link = 'https://donations.request.network/thank-you?owed=' + totalOwed + '&currency=' + selectedCurrency + '&fiat=' + selectedAmount + '&redirect=' + currentBaseUrl + '&network=' + network + '&txid=' + txid;
         saveReceiptLink.href = link;
+    }
+
+    this.checkTxidStatus = function (txid) {
+        var infura_base = "https://mainnet.infura.io";
+        if (network && network == 4) {
+            infura_base = "https://rinkeby.infura.io";
+        }
+        var web3 = new Web3(new Web3.providers.HttpProvider(infura_base));
+
+        var delayBeforeChecks = 0; //ms
+        //We do this as Rinkeby transactions confirm almost instantly. 
+        if (network == 4) {
+            delayBeforeChecks = 5000; //ms 
+        }
+        setTimeout(function() {
+            checkTxidInterval = setInterval(that.hasBeenMined(txid, web3), 2000);
+        }, delayBeforeChecks)
+    }
+
+    this.hasBeenMined = function (txid, provider) {
+        var transaction = provider.eth.getTransaction(txid);
+        if (transaction && transaction.blockHash) {
+            requestTransactionStatusTag.innerHTML = 'Confirmed';
+            requestTransactionStatusTag.classList.add('success');
+        }
     }
 }
