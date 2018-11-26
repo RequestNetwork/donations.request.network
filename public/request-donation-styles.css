@@ -586,7 +586,7 @@ a.rq-light:hover {
   opacity: 0.7;
 }
 
-.request-n-payment-button:hover, .request-n-payment-button.active {
+.request-n-payment-button:not(.disabled):hover, .request-n-payment-button.active {
   border-color: #3775F4;
 }
 
