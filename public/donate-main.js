@@ -1124,10 +1124,10 @@ function requestNetworkDonations(opts) {
             '</div>' +
             '<div class="request-subtitle rq-dark text-center mb-2">Your transaction has been successfully processed</div>' +
             '<div class="request-subtitle text-center mb-3">' +
-                '<a target="_blank" id="request-save-receipt-link" class="rq-light" href="#">Save your receipt</a>' +
-                '<span class="rq-dark mr-1 ml-1">or</span>' +
-                '<a href="#" id="request-donate-again-link" class="rq-light">Make another donation</a>'
-            '</div>' +
+            '<a target="_blank" id="request-save-receipt-link" class="rq-light" href="#">Save your receipt</a>' +
+            '<span class="rq-dark mr-1 ml-1">or</span>' +
+            '<a href="#" id="request-donate-again-link" class="rq-light">Make another donation</a>'
+        '</div>' +
             '</div>' +
             '</div>';
 
@@ -1170,7 +1170,7 @@ function requestNetworkDonations(opts) {
         if (network == 4) {
             delayBeforeChecks = 5000; //ms 
         }
-        setTimeout(function() {
+        setTimeout(function () {
             checkTxidInterval = setInterval(that.hasBeenMined(txid, web3), 2000);
         }, delayBeforeChecks)
     }

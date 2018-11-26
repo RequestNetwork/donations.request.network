@@ -6,6 +6,7 @@ var gulp = require("gulp");
 var runSequence = require("run-sequence");
 var uglify = require("gulp-uglify");
 var rename = require("gulp-rename");
+var babel = require('gulp-babel');
 
 // Set the browser that you want to supoprt
 const AUTOPREFIXER_BROWSERS = [
@@ -52,6 +53,9 @@ gulp.task("scripts", function() {
   return (
     gulp
       .src("./public/donate-main.js")
+      .pipe(babel({
+        presets: ['es2015']
+      }))
       // Minify the file
       .pipe(uglify())
       .pipe(
