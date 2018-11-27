@@ -463,7 +463,7 @@ function requestNetworkDonations(opts) {
 
     opts = Object.assign(defaults, opts);
 
-    var rootUrl = "http://localhost:8081/";
+    var rootUrl = "https://donations-v2.request.network/";
 
     that = this;
 
