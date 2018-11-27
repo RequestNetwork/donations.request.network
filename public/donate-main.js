@@ -463,7 +463,7 @@ function requestNetworkDonations(opts) {
 
     opts = Object.assign(defaults, opts);
 
-    var rootUrl = "https://donations-v2.request.network/";
+    var rootUrl = "http://localhost:8081/";
 
     that = this;
 
@@ -847,6 +847,7 @@ function requestNetworkDonations(opts) {
         });
 
         metamaskButton.addEventListener('click', function () {
+
             if (typeof web3 !== 'undefined') {
 
                 web3.version.getNetwork((err, netId) => {
@@ -917,7 +918,7 @@ function requestNetworkDonations(opts) {
     this.checkCacheDB = function (cbUUID) {
         var networkName = network == 4 ? 'rinkeby' : 'mainnet';
 
-        var cacheDBUrl = 'https://' + networkName + '.requestnetworkapi.com/requests?cbUUID=' + '42bb4d75-3afe-4aa1-8109-1c2d001e6cf3';
+        var cacheDBUrl = 'https://' + networkName + '.requestnetworkapi.com/requests?cbUUID=' + cbUUID;
 
         cacheDBInterval = setInterval(function () {
 
@@ -1044,7 +1045,6 @@ function requestNetworkDonations(opts) {
         //Debugging
         this.fetchRates();
         donationsModal.open();
-        this.checkCacheDB('asd');
     }
 
     this.fetchContentHtml = function () {
@@ -1136,7 +1136,7 @@ function requestNetworkDonations(opts) {
 
     this.generatePaymentChoicesPageHtml = function () {
 
-        var html = '<div id="request-payment-panel" >' +
+        var html = '<div id="request-payment-panel" class="hidden">' +
             '<div class="request-modal-box__header">' +
             '<span class="request-h1 request-modal-title">Make a donation today</span>' +
             '<span class="request-h3 request-modal-subtitle">Powered by Request Network</span>' +
@@ -1186,7 +1186,7 @@ function requestNetworkDonations(opts) {
 
     this.generateConfirmationPageHtml = function () {
 
-        var html = '<div id="request-confirmation-panel" >' +
+        var html = '<div id="request-confirmation-panel" class="hidden">' +
             '<div class="request-modal-box__header">' +
             '<span class="request-h1 request-modal-title">Thank you</span>' +
             '<span class="request-h3 request-modal-subtitle">Your support goes a long way towards making a difference</span>' +
