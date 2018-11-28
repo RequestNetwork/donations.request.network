@@ -940,7 +940,17 @@ function requestNetworkDonations(opts) {
         }, 4000);
     }
 
+    closeIcon[0].addEventListener('click', function () {
+        that.runModalCloseEvent();
+    });
 
+    this.runModalCloseEvent = function () {
+        selectionPanel.classList.remove('hidden');
+        paymentPanel.classList.add('hidden');
+        confirmationPanel.classList.add('hidden');
+        modalFooter[0].classList.remove('hidden');
+        currencyTiles[0].click();
+    };
 
     this.savePaymentCookie = function (txid) {
         var cookieData = {
