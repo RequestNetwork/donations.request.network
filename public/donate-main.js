@@ -876,7 +876,6 @@ function requestNetworkDonations(opts) {
                                     paymentPanel.classList.add('hidden');
                                     confirmationPanel.classList.remove('hidden');
                                     that.setSaveReceiptLink(txid);
-                                    that.savePaymentCookie(txid);
                                     that.checkTxidStatus(txid);
                                 }
                             });
@@ -895,10 +894,6 @@ function requestNetworkDonations(opts) {
             qrModalMain.classList.remove('hidden');
         });
 
-        closeIcon[0].addEventListener('click', function () {
-            that.runModalCloseEvent();
-        });
-
         qrModalClose.addEventListener('click', function () {
             qrModalMain.classList.add('hidden');
         });
@@ -909,15 +904,6 @@ function requestNetworkDonations(opts) {
             that.checkCacheDB(cbUUID);
         });
     }
-
-    this.runModalCloseEvent = function () {
-        this.clearCookie(COOKIE_NAME);
-        selectionPanel.classList.remove('hidden');
-        paymentPanel.classList.add('hidden');
-        confirmationPanel.classList.add('hidden');
-        modalFooter[0].classList.remove('hidden');
-        currencyTiles[0].click();
-    };
 
     this.checkCacheDB = function (cbUUID) {
         var networkName = network == 4 ? 'rinkeby' : 'mainnet';
@@ -943,7 +929,6 @@ function requestNetworkDonations(opts) {
                             paymentPanel.classList.add('hidden');
                             confirmationPanel.classList.remove('hidden');
                             that.setSaveReceiptLink(txid);
-                            that.savePaymentCookie(txid);
                             that.checkTxidStatus(txid);
                         }, 4000);
                     }
