@@ -912,6 +912,7 @@ function requestNetworkDonations(opts) {
         qrModalPaymentMade.addEventListener('click', function () {
             qrPaymentDetectionText.classList.remove('hidden');
             qrModalMain.classList.add('hidden');
+            that.checkCacheDB(cbUUID);
         });
     }
 
@@ -1076,7 +1077,7 @@ function requestNetworkDonations(opts) {
                     '<div class="request-tile request-tile-amount ' + activeClassAmounts + '" data-req-amount="' + presetAmounts[i] + '">' +
 
                     '<div class="request-amount">' +
-                    presetAmounts[i] + '<span class="request-dollar">$</span>' + '</div>' +
+                    '<span class="request-dollar">$</span>' + presetAmounts[i] + '</div>' +
                     '</div>' +
                     '</div>';
             }
