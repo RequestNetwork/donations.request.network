@@ -441,7 +441,7 @@
 var triggerButton = document.getElementById('requestDonationTrigger');
 var amountTiles = document.getElementsByClassName('request-tile-amount');
 var currencyTiles = document.getElementsByClassName('request-tile-currency');
-var customAmountButton, customAmountInput, proceedButton, closeIcon, conversionRate, total, totalFIAT, receiptDate, saveReceiptLink, anotherDonationLink, requestTransactionStatusTag, cbUUID;
+var customAmountButton, customAmountInput, proceedButton, closeIcon, conversionRate, total, totalFIAT, receiptDate, saveReceiptLink, requestTransactionStatusTag, cbUUID;
 var selectionPanel, paymentPanel, confirmationPanel, modalFooter;
 var metamaskButton, ledgerButton, qrButton, qrImage, qrModalClose, qrModalMain, qrModalPaymentMade, qrPaymentDetectionText;
 var that;
@@ -571,7 +571,6 @@ function requestNetworkDonations(opts) {
         total = document.getElementsByClassName('request-donations-total');
         totalFIAT = document.getElementsByClassName('request-donations-total-fiat');
         saveReceiptLink = document.getElementById('request-save-receipt-link');
-        anotherDonationLink = document.getElementById('request-donate-again-link');
         receiptDate = document.getElementById('request-receipt-date');
         requestTransactionStatusTag = document.getElementById('request-transaction-status-tag');
 
@@ -896,13 +895,8 @@ function requestNetworkDonations(opts) {
             qrModalMain.classList.remove('hidden');
         });
 
-        anotherDonationLink.addEventListener('click', function () {
-            that.clearCookie(COOKIE_NAME);
-            selectionPanel.classList.remove('hidden');
-            paymentPanel.classList.add('hidden');
-            confirmationPanel.classList.add('hidden');
-            modalFooter[0].classList.remove('hidden');
-            currencyTiles[0].click();
+        closeIcon[0].addEventListener('click', function () {
+            that.runModalCloseEvent();
         });
 
         qrModalClose.addEventListener('click', function () {
@@ -915,6 +909,15 @@ function requestNetworkDonations(opts) {
             that.checkCacheDB(cbUUID);
         });
     }
+
+    this.runModalCloseEvent = function () {
+        this.clearCookie(COOKIE_NAME);
+        selectionPanel.classList.remove('hidden');
+        paymentPanel.classList.add('hidden');
+        confirmationPanel.classList.add('hidden');
+        modalFooter[0].classList.remove('hidden');
+        currencyTiles[0].click();
+    };
 
     this.checkCacheDB = function (cbUUID) {
         var networkName = network == 4 ? 'rinkeby' : 'mainnet';
@@ -975,7 +978,7 @@ function requestNetworkDonations(opts) {
             date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
             expires = "; expires=" + date.toUTCString();
         }
-        document.cookie = name + "=" + (value || "") + expires + "; path=/";
+        document.cookie = name + "=" + (value || "") + expires + ";";
     }
 
     this.getCookie = function (name) {
@@ -991,12 +994,6 @@ function requestNetworkDonations(opts) {
 
     this.clearCookie = function (name) {
         document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-    }
-
-    this.trackTransaction = function (txid) {
-        if (typeof web3 !== 'undefined') {
-
-        }
     }
 
     this.addTransactionFee = function (amount) {
@@ -1202,9 +1199,7 @@ function requestNetworkDonations(opts) {
             '<div class="request-subtitle rq-dark text-center mb-2">Your transaction has been successfully processed</div>' +
             '<div class="request-subtitle text-center mb-3">' +
             '<a target="_blank" id="request-save-receipt-link" class="rq-light" href="#">Save your receipt</a>' +
-            '<span class="rq-dark mr-1 ml-1">or</span>' +
-            '<a href="#" id="request-donate-again-link" class="rq-light">Make another donation</a>'
-        '</div>' +
+            '</div>' +
             '</div>' +
             '</div>';
 
