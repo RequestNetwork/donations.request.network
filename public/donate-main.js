@@ -903,6 +903,10 @@ function requestNetworkDonations(opts) {
             qrModalMain.classList.add('hidden');
             that.checkCacheDB(cbUUID);
         });
+
+        closeIcon[0].addEventListener('click', function () {
+            that.runModalCloseEvent();
+        });
     }
 
     this.checkCacheDB = function (cbUUID) {
@@ -939,10 +943,6 @@ function requestNetworkDonations(opts) {
 
         }, 4000);
     }
-
-    closeIcon[0].addEventListener('click', function () {
-        that.runModalCloseEvent();
-    });
 
     this.runModalCloseEvent = function () {
         selectionPanel.classList.remove('hidden');
