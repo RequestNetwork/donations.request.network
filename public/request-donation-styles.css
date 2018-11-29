@@ -292,6 +292,7 @@
 }
 
 #request-modal-return-arrow {
+  cursor: pointer;
   top: 50%;
   position: absolute;
   width: 20px;
