@@ -441,7 +441,7 @@
 var triggerButton = document.getElementById('requestDonationTrigger');
 var amountTiles = document.getElementsByClassName('request-tile-amount');
 var currencyTiles = document.getElementsByClassName('request-tile-currency');
-var customAmountButton, customAmountInput, proceedButton, closeIcon, conversionRate, total, totalFIAT, receiptDate, saveReceiptLink, requestTransactionStatusTag, cbUUID;
+var customAmountButton, customAmountInput, proceedButton, returnButton, closeIcon, conversionRate, total, totalFIAT, receiptDate, saveReceiptLink, requestTransactionStatusTag, cbUUID;
 var selectionPanel, paymentPanel, confirmationPanel, modalFooter;
 var metamaskButton, ledgerButton, qrButton, qrImage, qrModalClose, qrModalMain, qrModalPaymentMade, qrPaymentDetectionText;
 var that;
@@ -564,6 +564,7 @@ function requestNetworkDonations(opts) {
 
         proceedButton = document.getElementById('proceed-button');
         closeIcon = document.getElementsByClassName('request-modal__close');
+        returnButton = document.getElementById('request-modal-return-arrow');
         customAmountButton = document.getElementById('custom-amount-trigger');
         customAmountInput = document.getElementById('custom-amount-input');
         modalFooter = document.getElementsByClassName('request-modal-box__footer');
@@ -907,6 +908,10 @@ function requestNetworkDonations(opts) {
         closeIcon[0].addEventListener('click', function () {
             that.runModalCloseEvent();
         });
+
+        returnButton.addEventListener('click', function () {
+            that.runModalCloseEvent();
+        });
     }
 
     this.checkCacheDB = function (cbUUID) {
@@ -1131,6 +1136,7 @@ function requestNetworkDonations(opts) {
 
         var html = '<div id="request-payment-panel" class="hidden">' +
             '<div class="request-modal-box__header">' +
+            '<span id="request-modal-return-arrow"></span>' +
             '<span class="request-h1 request-modal-title">Make a donation today</span>' +
             '<span class="request-h3 request-modal-subtitle">Powered by Request Network</span>' +
             '</div>' +
