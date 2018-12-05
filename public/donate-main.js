@@ -882,34 +882,51 @@ function requestNetworkDonations(opts) {
                             if (selectedCurrency == 'ETH') {
                                 var totalOwedWithFee = that.addTransactionFee(totalOwed);
                                 totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
+
+                                web3.eth.sendTransaction({
+                                    from: web3.eth.accounts[0],
+                                    to: that.getRequestContractAddress(),
+                                    value: totalOwedWei,
+                                    data: transactionData
+                                }, function (error, txid) {
+                                    if (!error && txid != undefined) {
+                                        selectionPanel.classList.add('hidden');
+                                        paymentPanel.classList.add('hidden');
+                                        confirmationPanel.classList.remove('hidden');
+                                        that.setSaveReceiptLink(txid);
+                                        that.savePaymentCookie(txid);
+                                        that.checkTxidStatus(txid);
+                                    }
+                                });
+                            } else {
+                                var contractAbi = web3.eth.contract(JSON.parse(erc20).abi);
+                                var contract = contractAbi.at(that.getCurrencyAddress('REQ'));
+    
+                                //Change to metamask account
+                                contract.approve(web3.eth.accounts[0], 100000000, function (error, transactionHash) {
+                                    if (!err) {
+                                        web3.eth.sendTransaction({
+                                            from: web3.eth.accounts[0],
+                                            to: that.getRequestContractAddress(),
+                                            value: totalOwedWei,
+                                            data: transactionData
+                                        }, function (error, txid) {
+                                            if (!error && txid != undefined) {
+                                                selectionPanel.classList.add('hidden');
+                                                paymentPanel.classList.add('hidden');
+                                                confirmationPanel.classList.remove('hidden');
+                                                that.setSaveReceiptLink(txid);
+                                                that.savePaymentCookie(txid);
+                                                that.checkTxidStatus(txid);
+                                            }
+                                        });
+                                    }
+                                    else {
+                                        alert(err);
+                                    }
+                                });
                             }
-
-                            var contractAbi = web3.eth.contract(JSON.parse(erc20).abi);
-                            var contract = contractAbi.at(that.getCurrencyAddress('REQ'));
-
-                            //Change to metamask account
-                            contract.approve(web3.eth.accounts[0], 100000000, function (error, transactionHash) {
-                                if (!err) {
-                                    web3.eth.sendTransaction({
-                                        from: web3.eth.accounts[0],
-                                        to: that.getRequestContractAddress(),
-                                        value: totalOwedWei,
-                                        data: transactionData
-                                    }, function (error, txid) {
-                                        if (!error && txid != undefined) {
-                                            selectionPanel.classList.add('hidden');
-                                            paymentPanel.classList.add('hidden');
-                                            confirmationPanel.classList.remove('hidden');
-                                            that.setSaveReceiptLink(txid);
-                                            that.savePaymentCookie(txid);
-                                            that.checkTxidStatus(txid);
-                                        }
-                                    });
-                                }
-                                else {
-                                    alert(err);
-                                }
-                            });
+                            
                         }
                         else {
                             alert('Please login to MetaMask');
