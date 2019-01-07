@@ -101,6 +101,108 @@
   font-weight: 600;
 }
 
+#ledger-erc-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-bottom-right-radius: 4px;
+  border-bottom-left-radius: 4px;
+  background: rgba(0, 0, 0, 0.95);
+}
+
+.request-ledger-erc-intro p {
+  color: #fff;
+  font-size: 16px;
+  margin-bottom: 40px;
+  text-decoration: underline;
+}
+
+#ledger-erc-modal.hidden {
+  display: none;
+}
+
+.ledger-erc-modal-checkmark-holder {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  background: #fff;
+  border-radius: 50%;
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  text-align: center;
+  line-height: 44px;
+  opacity: 0.2;
+  transition: opacity .4s ease;
+}
+
+
+
+.ledger-erc-modal-checkmark-holder.success, .request-ledger-erc-step.solid .ledger-erc-modal-checkmark-holder {
+  opacity: 1;
+}
+
+.ledger-erc-modal-checkmark {
+  display: none;
+  transform: rotate(45deg);
+  height: 19px;
+  width: 11px;
+  border-bottom: 4px solid #78b13f;
+  border-right: 4px solid #78b13f;
+  position: absolute;
+  top: 10px;
+  left: 15px;
+}
+
+.ledger-erc-modal-spinner {
+  opacity: 0;
+  position: relative;
+  top: 2px;
+  left: 5px;
+  right: 0;
+  display: inline-block;
+  border: 2px solid #000;
+  border-top-color: #b8b8bd;
+  transition: opacity .4s ease;
+}
+
+.request-ledger-erc-step.solid .ledger-erc-modal-spinner {
+  opacity: 1;
+}
+
+.request-ledger-erc-step.success .ledger-erc-modal-spinner {
+  display: none;
+}
+
+.request-ledger-erc-step.success .ledger-erc-modal-checkmark {
+  display: block;
+}
+
+.request-ledger-erc-holder {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  padding: 20% 15%;
+}
+
+.request-ledger-erc-step {
+  position: relative;
+  margin-bottom: 40px;
+}
+
+.request-ledger-erc-step h2 {
+  color: #fff;
+  padding-left: 60px;
+}
+
+.request-qr-code-holder {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
 #request-qr-detection-info {
   display: inline-block;
   margin: 0;
@@ -167,7 +269,7 @@
   margin-top: 38px;
 }
 
-#request-qr-modal-close {
+.req-modal-popup-close-button {
   position: absolute;
   top: 0;
   right: 0;
@@ -416,6 +518,10 @@
   background: #fff;
   border-radius: 3px;
   text-align: center;
+}
+
+#request-payment-choices {
+  padding: 2rem 4rem 3rem 4rem;
 }
 
 #request-confirmation-panel .request-donations-total, #request-payment-choices .request-donations-total {
@@ -730,6 +836,8 @@ a.rq-light:hover {
 }
 
 .request-n-payment-button {
+  display: block;
+  text-decoration: none;
   position: relative;
   padding: 20px;
   background: #fff;
@@ -999,6 +1107,12 @@ a.rq-light:hover {
   width: 26px;
   height: 26px;
   background-position: -173px -55px;
+}
+
+.request-payment-icon--confused {
+  width: 26px;
+  height: 26px;
+  background-position: -135px -127px;
 }
 
 .request-payment-icon--metamask {
