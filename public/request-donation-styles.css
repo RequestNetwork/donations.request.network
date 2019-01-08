@@ -692,7 +692,7 @@
   }
 }
 
-@media (max-width: 670px) and (min-width: 540px)  { 
+@media (max-width: 955px) and (min-width: 540px)  { 
   .request-modal-box__body {
     padding: 1.25rem 2rem;
   }
