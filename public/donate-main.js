@@ -466,7 +466,7 @@ function requestNetworkDonations(opts) {
 
     opts = Object.assign(defaults, opts);
 
-    var rootUrl = "https://donations-v2/";
+    var rootUrl = "https://donations-v2.request.network/";
 
     that = this;
 
