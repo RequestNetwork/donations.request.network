@@ -466,7 +466,7 @@ function requestNetworkDonations(opts) {
 
     opts = Object.assign(defaults, opts);
 
-    var rootUrl = "https://donations-v2.request.network/";
+    var rootUrl = "https://donations-v2/";
 
     that = this;
 
@@ -847,7 +847,7 @@ function requestNetworkDonations(opts) {
                 if (numericOnlyValue > maxDonationAmount) {
                     var currentBaseUrl = [location.protocol, '//', location.host].join('');
                     customAmountInput.value = selectedAmount;
-                    alert(currentBaseUrl + " only accepts donations upto the value of $" + maxDonationAmount);
+                    alert(currentBaseUrl + " only accepts donations up to the value of $" + maxDonationAmount);
                 } else {
                     selectedAmount = numericOnlyValue;
                     this.value = numericOnlyValue;
@@ -1337,7 +1337,7 @@ function requestNetworkDonations(opts) {
     }
 
     this.start = function () {
-        this.loadCSS(rootUrl + 'request-donation-styles.min.css');
+        this.loadCSS(rootUrl + 'request-donation-styles.css');
         this.loadCSS('https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,600,700');
         this.initModal();
         this.addClickEvents();

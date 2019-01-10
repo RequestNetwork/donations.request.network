@@ -521,7 +521,7 @@
 }
 
 #request-payment-choices {
-  padding: 2rem 4rem 3rem 4rem;
+  padding: 2rem 3.5rem 3rem 3.5rem;
 }
 
 #request-confirmation-panel .request-donations-total, #request-payment-choices .request-donations-total {
@@ -688,15 +688,11 @@
   }
 
   .request-modal-box {
-    zoom: 0.75;
+    zoom: 0.76;
   }
 }
 
 @media (max-width: 955px) and (min-width: 540px)  { 
-  .request-modal-box__body {
-    padding: 1.25rem 2rem;
-  }
-
   .request-modal-box {
     width: 80%;
   }
