@@ -1,8 +1,8 @@
 /*!
-* RequestNetworkDonations
-* @author  Adam Dowson
-* @version 0.0.1
-*/
+ * RequestNetworkDonations
+ * @author  Adam Dowson
+ * @version 2.0.0
+ */
 (function (root, factory) {
     if (typeof define === 'function' && define.amd) {
         define(factory);
@@ -264,8 +264,6 @@
                 this.modal.classList.remove('request-modal--overflow');
             }
 
-            // TODO: remove offset
-            //_offset.call(this);
             if (!this.isOverflow() && this.opts.stickyFooter) {
                 this.setStickyFooter(false);
             } else if (this.isOverflow() && this.opts.stickyFooter) {
@@ -438,17 +436,28 @@
 
 }));
 
+var erc20 = '{"contractName":"ERC20","abi":[{"constant":false,"inputs":[{"name":"spender","type":"address"},{"name":"value","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"from","type":"address"},{"name":"to","type":"address"},{"name":"value","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"who","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"to","type":"address"},{"name":"value","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"owner","type":"address"},{"name":"spender","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"anonymous":false,"inputs":[{"indexed":true,"name":"owner","type":"address"},{"indexed":true,"name":"spender","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"from","type":"address"},{"indexed":true,"name":"to","type":"address"},{"indexed":false,"name":"value","type":"uint256"}],"name":"Transfer","type":"event"}]}';
 var triggerButton = document.getElementById('requestDonationTrigger');
 var amountTiles = document.getElementsByClassName('request-tile-amount');
 var currencyTiles = document.getElementsByClassName('request-tile-currency');
-var customAmountButton, customAmountInput, proceedButton, closeIcon, conversionRate, total;
+var customAmountButton, customAmountInput, proceedButton, returnButton, closeIcon, conversionRate, total, totalFIAT, receiptDate, saveReceiptLink, requestTransactionStatusTag, cbUUID;
+var selectionPanel, paymentPanel, confirmationPanel, modalFooter;
+var metamaskButton, ledgerButton, qrButton, qrImage, qrModalClose, qrModalMain, qrModalPaymentMade, qrPaymentDetectionText, ledgerErcModalMain, ledgerErcModalClose, ledgerErcModalStep1, ledgerErcModalStep2;
 var that;
-var selectedAmount = '10', selectedCurrency = 'ETH', totalOwed, network = 1, maxDonationAmount;
+var selectedAmount = '10',
+    selectedCurrency = 'ETH',
+    totalOwed, network = 1,
+    maxDonationAmount, transactionData, receiptDateValue, signedResponse;
 var conversionRates = [];
 var filteredCurrencies = [];
 var presetAmounts = [5, 10, 25, 50, 100, 250];
 var address;
 var PAYMENT_ROUND_AMOUNT = 6;
+var COOKIE_NAME = 'REQUEST_TXID_COOKIE';
+var checkTxidInterval, cacheDBInterval;
+
+var requestContractAddressRinkeby = '0xd88ab9b1691340E04a5BBf78529c11d592d35f57',
+    requestContractAddressMainnet = '0x3038045cd883abff0c6eea4b1954843c0fa5a735';
 
 function requestNetworkDonations(opts) {
     opts = opts || {};
@@ -458,7 +467,7 @@ function requestNetworkDonations(opts) {
     opts = Object.assign(defaults, opts);
 
     var rootUrl = "https://donations.request.network/";
-    
+
     that = this;
 
     var allCurrencies = {
@@ -483,8 +492,7 @@ function requestNetworkDonations(opts) {
             }
         }
         selectedCurrency = opts.currencies[0];
-    }
-    else {
+    } else {
         filteredCurrencies = allCurrencies;
     }
 
@@ -523,11 +531,18 @@ function requestNetworkDonations(opts) {
     /* == helper functions */
     /* ----------------------------------------------------------- */
     this.loadCSS = function (href) {
-        var link = document.createElement("link");
+        var link = document.createElement('link');
         link.href = href;
-        link.type = "text/css";
-        link.rel = "stylesheet";
-        document.getElementsByTagName("head")[0].appendChild(link);
+        link.type = 'text/css';
+        link.rel = 'stylesheet';
+        document.getElementsByTagName('head')[0].appendChild(link);
+    };
+
+    this.loadJS = function (href) {
+        var script = document.createElement('script');
+        script.type = 'text/javascript';
+        script.src = href;
+        document.getElementsByTagName('head')[0].appendChild(script);
     };
 
     this.initModal = function () {
@@ -538,7 +553,7 @@ function requestNetworkDonations(opts) {
         });
 
 
-        var footerButton = '<button id="proceed-button" class="request-btn request-btn--primary">Proceed<i class="spinner"></i></button>';
+        var footerButton = '<button id="proceed-button" class="request-btn request-btn--primary">Next<i class="spinner"></i></button>';
 
         donationsModal.setFooterContent(footerButton);
 
@@ -551,10 +566,66 @@ function requestNetworkDonations(opts) {
 
         proceedButton = document.getElementById('proceed-button');
         closeIcon = document.getElementsByClassName('request-modal__close');
+        returnButton = document.getElementById('request-modal-return-arrow');
         customAmountButton = document.getElementById('custom-amount-trigger');
         customAmountInput = document.getElementById('custom-amount-input');
+        modalFooter = document.getElementsByClassName('request-modal-box__footer');
         conversionRate = document.getElementById('request-donations-rate');
-        total = document.getElementById('request-donations-total');
+        total = document.getElementsByClassName('request-donations-total');
+        totalFIAT = document.getElementsByClassName('request-donations-total-fiat');
+        saveReceiptLink = document.getElementById('request-save-receipt-link');
+        receiptDate = document.getElementById('request-receipt-date');
+        requestTransactionStatusTag = document.getElementById('request-transaction-status-tag');
+
+        selectionPanel = document.getElementById('request-selection-panel');
+        paymentPanel = document.getElementById('request-payment-panel');
+        confirmationPanel = document.getElementById('request-confirmation-panel');
+
+        metamaskButton = document.getElementById('request-n-payment-button-metamask');
+        ledgerButton = document.getElementById('request-n-payment-button-ledger');
+        qrButton = document.getElementById('request-n-payment-button-qr');
+
+        ledgerErcModalClose = document.getElementById('ledger-erc-modal-close');
+        ledgerErcModalMain = document.getElementById('ledger-erc-modal');
+        ledgerErcModalStep1 = document.getElementById('request-ledger-erc-step1');
+        ledgerErcModalStep2 = document.getElementById('request-ledger-erc-step2');
+
+        qrImage = document.getElementById('request-qr-code');
+        qrModalClose = document.getElementById('request-qr-modal-close');
+        qrModalMain = document.getElementById('request-qr-modal');
+        qrModalPaymentMade = document.getElementById('request-qr-code-payment-made');
+        qrPaymentDetectionText = document.getElementById('request-qr-detection-info');
+
+        if (network == 4) {
+            ledgerButton.classList.add('disabled');
+        }
+
+        this.setInnerHtmlByClass(totalFIAT, selectedAmount + ' USD');
+
+        if (this.getCookie(COOKIE_NAME) != null) {
+            this.showOldReceiptFromCookie(this.getCookie(COOKIE_NAME));
+        }
+    }
+
+    this.showOldReceiptFromCookie = function (cookie) {
+        var cookieJson = JSON.parse(cookie);
+
+        totalOwed = cookieJson.amount_crypto;
+        selectedCurrency = cookieJson.currency;
+        selectedAmount = cookieJson.amount_fiat;
+        network = cookieJson.network;
+        var txid = cookieJson.txid;
+
+        this.setSaveReceiptLink(txid);
+        this.setInnerHtmlByClass(totalFIAT, selectedAmount + ' USD');
+        this.setInnerHtmlByClass(total, totalOwed + ' ' + selectedCurrency);
+        receiptDate.innerHTML = cookieJson.date;
+
+        selectionPanel.classList.add('hidden');
+        paymentPanel.classList.add('hidden');
+        confirmationPanel.classList.remove('hidden');
+        modalFooter[0].classList.add('hidden');
+        this.checkTxidStatus(txid);
     }
 
     this.jsonToQueryString = function (json) {
@@ -568,20 +639,7 @@ function requestNetworkDonations(opts) {
     this.generateRequest = function () {
         var xhr = new XMLHttpRequest();
 
-        var redirectBaseUrl = 'https://donations.request.network/thank-you';
         var currentBaseUrl = [location.protocol, '//', location.host].join('');
-        var url = [currentBaseUrl, location.pathname].join('');
-
-        var redirectUrlParams = {
-            'owed': totalOwed,
-            'currency': selectedCurrency,
-            'fiat': selectedAmount,
-            'network': network,
-            'redirect': url,
-            'txid': '' //given after app.request.network redirect
-        }
-
-        var fullRedirectUrl = redirectBaseUrl + that.jsonToQueryString(redirectUrlParams);
 
         var invoiceItem = [{
             'name': 'Donation to ' + currentBaseUrl,
@@ -591,29 +649,74 @@ function requestNetworkDonations(opts) {
             'currency': 'USD'
         }];
 
+        cbUUID = this.generateUUID();
+
         var params = {
             'to_pay': totalOwed,
             'to_address': address,
-            'redirect_url': fullRedirectUrl,
+            'redirect_url': 'N/A',
             'reason': 'Donation to ' + currentBaseUrl,
             'network': network,
             'currency': selectedCurrency,
             'builder_id': 'RequestDonations',
-            'invoice_items': invoiceItem
+            'invoice_items': invoiceItem,
+            'cbUUID': cbUUID
         }
 
-        var signUrl = 'https://sign.wooreq.com/sign' + that.jsonToQueryString(params);
+        var signUrl = 'https://sign.wooreq.com/v2/sign' + that.jsonToQueryString(params);
 
         var xmlHttp = new XMLHttpRequest();
         xmlHttp.onreadystatechange = function () {
             if (xmlHttp.readyState == 4 && xmlHttp.status == 200) {
                 proceedButton.classList.remove('disabled');
                 closeIcon[0].classList.remove('hidden');
-                window.location.href = xmlHttp.responseText;
+                selectionPanel.classList.add('hidden');
+                paymentPanel.classList.remove('hidden');
+                modalFooter[0].classList.add('hidden');
+
+                that.setTransactionData(xmlHttp.responseText);
+                that.generateQrCode();
             }
         }
         xmlHttp.open("GET", signUrl, true); // true for asynchronous 
         xmlHttp.send(null);
+    }
+
+    this.generateUUID = function () {
+        function s4() {
+            return Math.floor((1 + Math.random()) * 0x10000)
+                .toString(16)
+                .substring(1);
+        }
+        return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+    }
+
+    this.checkForLedger = function () {
+        ledger.comm_u2f.create_async().then(function (comm) {
+            var eth = new ledger.eth(comm);
+            eth.getAddress_async("44\'/60\'/0\'/0").then(
+                function (result) {
+                    console.log(result);
+                }).fail(function (error) {
+                    console.log(error);
+                    ledgerButton.classList.add('disabled');
+                });
+        });
+    }
+
+    this.setTransactionData = function (responseText) {
+        var jsonResponse = JSON.parse(responseText);
+
+        if (jsonResponse.transaction_data) {
+            transactionData = jsonResponse.transaction_data;
+        }
+
+        signedResponse = {
+            'bytes': jsonResponse.bytes,
+            'expectedAmount': jsonResponse.expectedAmount,
+            'expirationDate': jsonResponse.expirationDate,
+            'signature': jsonResponse.signature,
+        };
     }
 
     this.fetchRates = function () {
@@ -622,11 +725,13 @@ function requestNetworkDonations(opts) {
             'currency': selectedCurrency
         }
 
+        that.setInnerHtmlByClass(totalFIAT, selectedAmount + ' USD');
+
         if (conversionRates[selectedCurrency]) {
             var rate = conversionRates[selectedCurrency];
             conversionRate.innerHTML = rate;
             totalOwed = parseFloat((rate * selectedAmount).toFixed(PAYMENT_ROUND_AMOUNT)).toString();
-            total.innerHTML = totalOwed + ' ' + selectedCurrency;
+            that.setInnerHtmlByClass(total, totalOwed + ' ' + selectedCurrency);
         } else {
             var signUrl = 'https://sign.wooreq.com/rates' + that.jsonToQueryString(params);
 
@@ -636,7 +741,7 @@ function requestNetworkDonations(opts) {
                     var parsedResponse = JSON.parse(xmlHttp.responseText);
                     conversionRate.innerHTML = parsedResponse.conversion_rate;
                     totalOwed = parseFloat((parsedResponse.conversion_rate * selectedAmount).toFixed(PAYMENT_ROUND_AMOUNT)).toString();
-                    total.innerHTML = totalOwed + ' ' + selectedCurrency;
+                    that.setInnerHtmlByClass(total, totalOwed + ' ' + selectedCurrency);
                     conversionRates[selectedCurrency] = parsedResponse.conversion_rate;
                 } else if (xmlHttp.readyState == 4 && xmlHttp.status != 200) {
                     alert('Error: Fetching conversion rates failed, this error has been logged');
@@ -644,6 +749,25 @@ function requestNetworkDonations(opts) {
             }
             xmlHttp.open("GET", signUrl, true); // true for asynchronous 
             xmlHttp.send(null);
+        }
+    }
+
+    this.generateQrCode = function () {
+
+        var qr = new RequestQRCode({
+            value: 'ethereum:' + that.getRequestContractAddress() + '?value=' + totalOwed + '&data=' + transactionData + '&chain_id=' + network,
+            background: '#f5f6fa',
+            size: 300
+        });
+
+        qrImage.src = qr.toDataURL();
+    }
+
+    this.setInnerHtmlByClass = function (selector, amount) {
+        if (selector.length > 0) {
+            for (var i = 0; i < selector.length; i++) {
+                selector[i].innerHTML = amount;
+            }
         }
     }
 
@@ -664,6 +788,8 @@ function requestNetworkDonations(opts) {
                 }
 
                 selectedAmount = this.getAttribute('data-req-amount');
+
+                that.setInnerHtmlByClass(totalFIAT, selectedAmount + ' USD');
                 that.fetchRates();
                 that.clearCustomAmount();
                 this.classList.toggle('active');
@@ -694,7 +820,19 @@ function requestNetworkDonations(opts) {
             } else {
                 proceedButton.classList.add('disabled');
                 closeIcon[0].classList.add('hidden');
+                that.loadJS('https://cdn.jsdelivr.net/gh/ethereum/web3.js/dist/web3.min.js');
+                that.loadJS(rootUrl + 'js/ledger.min.js');
+                that.loadJS(rootUrl + 'js/ethereumjs-tx.min.js');
+                that.loadJS(rootUrl + 'js/qr.min.js');
                 that.generateRequest();
+                that.setReceiptDate();
+                //Force hide of QR code on Mainnet until CacheDB is upto date
+                if (selectedCurrency != 'ETH' || network == 1) {
+                    qrButton.parentNode.classList.add('hidden');
+                    // that.loadJS(rootUrl + 'js/artifacts/0.0.2/all.js');
+                } else {
+                    qrButton.parentNode.classList.remove('hidden');
+                }
             }
         });
 
@@ -710,7 +848,7 @@ function requestNetworkDonations(opts) {
                 if (numericOnlyValue > maxDonationAmount) {
                     var currentBaseUrl = [location.protocol, '//', location.host].join('');
                     customAmountInput.value = selectedAmount;
-                    alert(currentBaseUrl + " only accepts donations upto the value of $" + maxDonationAmount);
+                    alert(currentBaseUrl + " only accepts donations up to the value of $" + maxDonationAmount);
                 } else {
                     selectedAmount = numericOnlyValue;
                     this.value = numericOnlyValue;
@@ -726,6 +864,446 @@ function requestNetworkDonations(opts) {
         triggerButton.addEventListener('click', function () {
             that.fetchRates();
         });
+
+        metamaskButton.addEventListener('click', function () {
+
+            if (typeof web3 !== 'undefined') {
+
+                web3.version.getNetwork((err, netId) => {
+                    if (netId != network) {
+                        if (network == 4) {
+                            alert('Please change your MetaMask network to Rinkeby.');
+                        } else {
+                            alert('Please change your MetaMask network to Mainnet.');
+                        }
+                    } else {
+                        if (web3.eth.accounts[0] != null) {
+                            window.web3 = new Web3(web3.currentProvider);
+
+                            var totalOwedWei = 0;
+
+                            if (selectedCurrency == 'ETH') {
+                                var totalOwedWithFee = that.addTransactionFee(totalOwed);
+                                totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
+
+                                web3.eth.sendTransaction({
+                                    from: web3.eth.accounts[0],
+                                    to: that.getRequestContractAddress(),
+                                    value: totalOwedWei,
+                                    data: transactionData
+                                }, function (error, txid) {
+                                    if (!error && txid != undefined) {
+                                        selectionPanel.classList.add('hidden');
+                                        paymentPanel.classList.add('hidden');
+                                        confirmationPanel.classList.remove('hidden');
+                                        that.setSaveReceiptLink(txid);
+                                        that.savePaymentCookie(txid);
+                                        that.checkTxidStatus(txid);
+                                    }
+                                });
+                            } else {
+                                var erc20Abi = web3.eth.contract(JSON.parse(erc20).abi);
+                                var erc20AbiContract = erc20Abi.at(that.getCurrencyAddress(selectedCurrency).main);
+
+                                var erc20AbiItem = web3.eth.contract(JSON.parse(that.fetchArtifactInfo(selectedCurrency)).abi);
+                                var erc20Contract = erc20AbiItem.at(that.getCurrencyAddress(selectedCurrency).erc20);
+
+                                erc20AbiContract.balanceOf(web3.eth.accounts[0], function (err, res) {
+                                    if (!err) {
+                                        if (res.c[0] >= totalOwed) {
+                                            erc20Contract.collectEstimation(signedResponse.expectedAmount, function (err, res) {
+
+                                                erc20AbiContract.approve(that.getCurrencyAddress(selectedCurrency).erc20, 999900000000000000000000000, function (error) {
+                                                    if (!error) {
+
+                                                        web3.eth.sendTransaction({
+                                                            from: web3.eth.accounts[0],
+                                                            to: that.getCurrencyAddress(selectedCurrency).erc20,
+                                                            value: res.c[0],
+                                                            data: transactionData
+                                                        }, function (error, txid) {
+                                                            if (!error && txid != undefined) {
+                                                                selectionPanel.classList.add('hidden');
+                                                                paymentPanel.classList.add('hidden');
+                                                                confirmationPanel.classList.remove('hidden');
+                                                                that.setSaveReceiptLink(txid);
+                                                                that.savePaymentCookie(txid);
+                                                                that.checkTxidStatus(txid);
+                                                            }
+                                                        });
+                                                    } else {
+                                                        alert(error);
+                                                    }
+                                                });
+                                            });
+                                        } else {
+                                            alert('You don\'t have enough ' + selectedCurrency + ' to make this donation, please change your account.');
+                                        }
+                                    } else {
+                                        alert(err);
+                                    }
+                                });
+                            }
+
+                        } else {
+                            alert('Please login to MetaMask');
+                        }
+                    }
+                });
+            } else {
+                alert('You don\'t have MetaMask installed');
+            }
+        });
+
+        if (location.protocol == 'https:') {
+            ledgerButton.addEventListener('click', function () {
+                var web3 = that.getWeb3InstanceInfura();
+
+                var totalOwedWithFee = that.addTransactionFee(totalOwed);
+
+                var totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
+
+                var hexOwed = web3.toHex(totalOwedWei);
+
+                var gasPriceInWei = web3.toWei('5', 'gwei');
+                var valueWeiInHex = web3.toHex(gasPriceInWei);
+
+                console.log(valueWeiInHex);
+
+                ledger.comm_u2f.create_async().then(function (comm) {
+                    var eth = new ledger.eth(comm);
+                    eth.getAddress_async("44\'/60\'/0\'/0").then(
+                        function (result) {
+
+                            if (selectedCurrency == 'ETH') {
+                                var nonce = web3.eth.getTransactionCount(result.address);
+
+                                var raw = {
+                                    "nonce": nonce,
+                                    "gasPrice": valueWeiInHex,
+                                    "gasLimit": "0xF4240",
+                                    "to": that.getRequestContractAddress(),
+                                    "value": hexOwed,
+                                    "data": transactionData,
+                                    "chainId": 1,
+                                    "v": "0x01",
+                                    "r": "0x00",
+                                    "s": "0x00"
+                                };
+
+                                var txToSign = new ethereumjs.Tx(raw).serialize().toString('hex');
+
+                                eth.signTransaction_async("44\'/60\'/0\'/0", txToSign).then(function (result) {
+
+                                    raw.r = '0x' + result.r;
+                                    raw.s = '0x' + result.s;
+                                    raw.v = '0x' + result.v;
+
+                                    var txSigned = new ethereumjs.Tx(raw);
+
+                                    var txSignedHex = txSigned.serialize().toString('hex');
+
+                                    console.log(txSignedHex);
+
+                                    web3.eth.sendRawTransaction('0x' + txSignedHex, function (err, hash) {
+                                        if (!err) {
+                                            console.log(hash);
+                                            selectionPanel.classList.add('hidden');
+                                            paymentPanel.classList.add('hidden');
+                                            confirmationPanel.classList.remove('hidden');
+                                            that.setSaveReceiptLink(hash);
+                                            that.checkTxidStatus(hash);
+                                            that.savePaymentCookie(hash);
+                                        } else {
+                                            alert(err);
+                                        }
+                                    });
+
+                                }).fail(function (ex) {
+                                    alert(ex);
+                                });
+                            } else {
+                                ledgerErcModalMain.classList.remove('hidden');
+                                var erc20Abi = web3.eth.contract(JSON.parse(erc20).abi);
+                                var erc20AbiContract = erc20Abi.at(that.getCurrencyAddress(selectedCurrency).main);
+                                var erc20AbiItem = web3.eth.contract(JSON.parse(that.fetchArtifactInfo(selectedCurrency)).abi);
+                                var erc20Contract = erc20AbiItem.at(that.getCurrencyAddress(selectedCurrency).erc20);
+                                var nonceErc20 = web3.eth.getTransactionCount(result.address);
+                                var approvalTxData = erc20AbiContract.approve.getData(that.getCurrencyAddress(selectedCurrency).erc20, 999900000000000000000000000);
+
+                                var approvalRaw = {
+                                    "nonce": nonceErc20,
+                                    "gasPrice": valueWeiInHex,
+                                    "gasLimit": "0x186A0",
+                                    "to": that.getCurrencyAddress(selectedCurrency).main,
+                                    "value": '0x0',
+                                    "data": approvalTxData,
+                                    "chainId": 1,
+                                    "v": "0x01",
+                                    "r": "0x00",
+                                    "s": "0x00"
+                                };
+
+                                console.log(approvalRaw);
+
+                                var approvalTxToSign = new ethereumjs.Tx(approvalRaw).serialize().toString('hex');
+
+                                eth.signTransaction_async("44\'/60\'/0\'/0", approvalTxToSign).then(function (resultApproval) {
+
+                                    approvalRaw.r = '0x' + resultApproval.r;
+                                    approvalRaw.s = '0x' + resultApproval.s;
+                                    approvalRaw.v = '0x' + resultApproval.v;
+
+                                    var rawTxSigned = new ethereumjs.Tx(approvalRaw);
+
+                                    var rawTxSignedHex = rawTxSigned.serialize().toString('hex');
+
+                                    console.log(rawTxSignedHex);
+
+                                    web3.eth.sendRawTransaction('0x' + rawTxSignedHex, function (err) {
+                                        if (!err) {
+                                            ledgerErcModalStep1.classList.add('success');
+                                            ledgerErcModalStep2.classList.add('solid');
+
+                                            erc20Contract.collectEstimation(signedResponse.expectedAmount, function (err, res) {
+
+                                                var erc20Raw = {
+                                                    "nonce": (nonceErc20 + 1),
+                                                    "gasPrice": valueWeiInHex,
+                                                    "gasLimit": "0xF4240",
+                                                    "to": that.getCurrencyAddress(selectedCurrency).erc20,
+                                                    "value": res.c[0],
+                                                    "data": transactionData,
+                                                    "chainId": 1,
+                                                    "v": "0x01",
+                                                    "r": "0x00",
+                                                    "s": "0x00"
+                                                };
+
+                                                var erc20TxToSign = new ethereumjs.Tx(erc20Raw).serialize().toString('hex');
+
+                                                eth.signTransaction_async("44\'/60\'/0\'/0", erc20TxToSign).then(function (resultErc20Send) {
+                                                    erc20Raw.r = '0x' + resultErc20Send.r;
+                                                    erc20Raw.s = '0x' + resultErc20Send.s;
+                                                    erc20Raw.v = '0x' + resultErc20Send.v;
+
+                                                    var rawErc20Signed = new ethereumjs.Tx(erc20Raw);
+                                                    var rawErc20SignedHex = rawErc20Signed.serialize().toString('hex');
+
+                                                    web3.eth.sendRawTransaction('0x' + rawErc20SignedHex, function (err, txid) {
+                                                        if (!err && txid != undefined) {
+                                                            ledgerErcModalStep2.classList.add('success');
+
+                                                            setTimeout(function () {
+                                                                selectionPanel.classList.add('hidden');
+                                                                paymentPanel.classList.add('hidden');
+                                                                confirmationPanel.classList.remove('hidden');
+                                                                that.setSaveReceiptLink(txid);
+                                                                that.savePaymentCookie(txid);
+                                                                that.checkTxidStatus(txid);
+                                                                ledgerErcModalMain.classList.add('hidden');
+                                                            }, 4000);
+                                                        }
+                                                    });
+                                                });
+                                            });
+
+                                        } else {
+                                            alert(err);
+                                        }
+                                    });
+
+                                }).fail(function (ex) {
+                                    alert(ex);
+                                });
+                            }
+                        }).fail(function (error) {
+                            console.log(error);
+                            alert('Please ensure your Ledger is connected and unlocked.');
+                        });
+
+                });
+            });
+        }
+
+        qrButton.addEventListener('click', function () {
+            qrModalMain.classList.remove('hidden');
+        });
+
+        qrModalClose.addEventListener('click', function () {
+            qrModalMain.classList.add('hidden');
+        });
+
+        qrModalPaymentMade.addEventListener('click', function () {
+            qrPaymentDetectionText.classList.remove('hidden');
+            qrModalMain.classList.add('hidden');
+            that.checkCacheDB(cbUUID);
+        });
+
+        closeIcon[0].addEventListener('click', function () {
+            that.runModalCloseEvent();
+        });
+
+        returnButton.addEventListener('click', function () {
+            that.runModalCloseEvent();
+        });
+
+        ledgerErcModalClose.addEventListener('click', function () {
+            ledgerErcModalMain.classList.add('hidden');
+        });
+    }
+
+    this.fetchArtifactInfo = function (currency) {
+        var allArtifacts = {
+            REQ: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0xc77ceefa6960174accca0c6fdecb5dbd95042cda","blockNumber":5582445}}}',
+            BAT: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0x3f90549baf95c3c0b7e5bbb66b39edaefc7bd25e","blockNumber":6376252}}}',
+            BNB: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0x1fc6cceafaac97261e248ff5b8c6387696f14225","blockNumber":6376489}}}',
+            DAI: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0x3baa64a4401bbe18865547e916a9be8e6dd89a5a","blockNumber":5582774}}}',
+            DGX: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0x891a1f07cbf6325192d830f4399932d4d1d66e89","blockNumber":5582752}}}',
+            KIN: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0x63afd0d2b9653552ac775b714d9a488658a637c5","blockNumber":6370433}}}',
+            KNC: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0xa9566758d054f6efcf9b00095538fda3d9d75844","blockNumber":5582734}}}',
+            LINK: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0x8f9224e619921923fcb0f2e1a31502bf22b87cff","blockNumber":6376625}}}',
+            ZRX: '{"contractName":"RequestERC20","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"checkRequestSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"signer","type":"address"},{"name":"hash","type":"bytes32"},{"name":"v","type":"uint8"},{"name":"r","type":"bytes32"},{"name":"s","type":"bytes32"}],"name":"isValidSignature","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"_data","type":"bytes"},{"name":"offset","type":"uint256"}],"name":"extractBytes32","outputs":[{"name":"bs","type":"bytes32"}],"payable":false,"stateMutability":"pure","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"}],"version":"0.2.2","networks":{"main":{"address":"0xbbe47efe1a2cef913562fe454f6eb75a9f75e6d6","blockNumber":6376008}}}',
+            OMG: '{"contractName":"RequestOMG","abi":[{"constant":true,"inputs":[{"name":"_expectedAmount","type":"int256"}],"name":"collectEstimation","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesNumerator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_subtractAmounts","type":"uint256[]"}],"name":"subtractAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"unpause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestBurnerContract","type":"address"}],"name":"setRequestBurnerContract","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"paused","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"requestCore","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"rateFeesDenominator","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"cancelAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"additionalAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"pause","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"erc20Token","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"owner","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"}],"name":"payerRefundAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"}],"name":"acceptAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[{"name":"","type":"bytes32"},{"name":"","type":"uint256"}],"name":"payeesPaymentAddress","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"_rateFeesNumerator","type":"uint256"},{"name":"_rateFeesDenominator","type":"uint256"}],"name":"setRateFees","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_newMaxFees","type":"uint256"}],"name":"setMaxCollectable","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"requestBurnerContract","outputs":[{"name":"","type":"address"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"maxFees","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"newOwner","type":"address"}],"name":"transferOwnership","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"inputs":[{"name":"_requestCoreAddress","type":"address"},{"name":"_requestBurnerAddress","type":"address"},{"name":"_erc20Token","type":"address"}],"payable":false,"stateMutability":"nonpayable","type":"constructor"},{"anonymous":false,"inputs":[{"indexed":false,"name":"rateFeesNumerator","type":"uint256"},{"indexed":false,"name":"rateFeesDenominator","type":"uint256"}],"name":"UpdateRateFees","type":"event"},{"anonymous":false,"inputs":[{"indexed":false,"name":"maxFees","type":"uint256"}],"name":"UpdateMaxFees","type":"event"},{"anonymous":false,"inputs":[],"name":"Pause","type":"event"},{"anonymous":false,"inputs":[],"name":"Unpause","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"previousOwner","type":"address"},{"indexed":true,"name":"newOwner","type":"address"}],"name":"OwnershipTransferred","type":"event"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payer","type":"address"},{"name":"_payerRefundAddress","type":"address"},{"name":"_data","type":"string"}],"name":"createRequestAsPayeeAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestData","type":"bytes"},{"name":"_payeesPaymentAddress","type":"address[]"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_expirationDate","type":"uint256"},{"name":"_signature","type":"bytes"}],"name":"broadcastSignedRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionalAmounts","type":"uint256[]"}],"name":"paymentAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_requestId","type":"bytes32"},{"name":"_amountToRefund","type":"uint256"}],"name":"refundAction","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"_payeesIdAddress","type":"address[]"},{"name":"_expectedAmounts","type":"int256[]"},{"name":"_payerRefundAddress","type":"address"},{"name":"_payeeAmounts","type":"uint256[]"},{"name":"_additionals","type":"uint256[]"},{"name":"_data","type":"string"}],"name":"createRequestAsPayerAction","outputs":[{"name":"requestId","type":"bytes32"}],"payable":true,"stateMutability":"payable","type":"function"}],"version":"0.2.6","networks":{"main":{"address":"0x729e895e186b7fbd34485d496415bb2f42629b71","blockNumber":6492473}}}'
+        }
+        return allArtifacts[currency];
+    }
+
+    this.getCurrencyAddress = function (currency) {
+
+        var allContractAddresses = {
+            REQ: {
+                main: '0x8f8221afbb33998d8584a2b05749ba73c37a938a',
+                erc20: '0xc77ceefa6960174accca0c6fdecb5dbd95042cda'
+            },
+            KNC: {
+                main: '0xdd974d5c2e2928dea5f71b9825b8b646686bd200',
+                erc20: '0xa9566758d054f6efcf9b00095538fda3d9d75844'
+            },
+            DGX: {
+                main: '0x4f3afec4e5a3f2a6a1a411def7d7dfe50ee057bf',
+                erc20: '0x891a1f07cbf6325192d830f4399932d4d1d66e89'
+            },
+            DAI: {
+                main: '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359',
+                erc20: '0x3baa64a4401bbe18865547e916a9be8e6dd89a5a'
+            },
+            OMG: {
+                main: '0xd26114cd6ee289accf82350c8d8487fedb8a0c07',
+                erc20: '0xe44d5393cc60d67c7858aa75cf307c00e837f0e5'
+            },
+            KIN: {
+                main: '0x818fc6c2ec5986bc6e2cbf00939d90556ab12ce5',
+                erc20: '0x63afd0d2b9653552ac775b714d9a488658a637c5'
+            },
+            ZRX: {
+                main: '0xe41d2489571d322189246dafa5ebde1f4699f498',
+                erc20: '0xbBE47EFe1A2cEf913562fE454f6EB75A9F75E6d6'
+            },
+            BAT: {
+                main: '0x0d8775f648430679a709e98d2b0cb6250d2887ef',
+                erc20: '0x3f90549bAF95c3c0b7E5bBB66B39EDaEfc7BD25e'
+            },
+            BNB: {
+                main: '0xb8c77482e45f1f44de1745f52c74426c631bdd52',
+                erc20: '0x1fC6CCEafaAc97261E248FF5b8C6387696F14225'
+            },
+            LINK: {
+                main: '0x514910771af9ca656af840dff83e8264ecf986ca',
+                erc20: '0x8f9224e619921923fcb0f2e1a31502bF22b87CFF'
+            }
+        };
+
+        return allContractAddresses[currency];
+    }
+
+    this.checkCacheDB = function (cbUUID) {
+        var networkName = network == 4 ? 'rinkeby' : 'mainnet';
+
+        var cacheDBUrl = 'https://' + networkName + '.requestnetworkapi.com/requests?cbUUID=' + cbUUID;
+
+        cacheDBInterval = setInterval(function () {
+
+            var xmlHttp = new XMLHttpRequest();
+            xmlHttp.onreadystatechange = function () {
+                if (xmlHttp.readyState == 4 && xmlHttp.status == 200) {
+                    var jsonResponse = JSON.parse(xmlHttp.responseText);
+                    if (jsonResponse.docs.length != 0) {
+                        var requestInfo = jsonResponse.docs[0];
+                        var txid = requestInfo._transactionId;
+
+                        qrPaymentDetectionText.innerHTML = 'Payment detected';
+                        qrPaymentDetectionText.classList.add('success');
+                        clearInterval(cacheDBInterval);
+
+                        setTimeout(function () {
+                            selectionPanel.classList.add('hidden');
+                            paymentPanel.classList.add('hidden');
+                            confirmationPanel.classList.remove('hidden');
+                            that.setSaveReceiptLink(txid);
+                            that.checkTxidStatus(txid);
+                        }, 4000);
+                    }
+                }
+            }
+            xmlHttp.open("GET", cacheDBUrl, true); // true for asynchronous 
+            xmlHttp.send(null);
+
+        }, 4000);
+    }
+
+    this.runModalCloseEvent = function () {
+        selectionPanel.classList.remove('hidden');
+        paymentPanel.classList.add('hidden');
+        confirmationPanel.classList.add('hidden');
+        modalFooter[0].classList.remove('hidden');
+        currencyTiles[0].click();
+    };
+
+    this.savePaymentCookie = function (txid) {
+        var cookieData = {
+            'txid': txid,
+            'amount_fiat': selectedAmount,
+            'amount_crypto': totalOwed,
+            'currency': selectedCurrency,
+            'network': network,
+            'date': receiptDateValue,
+            'cbUUID': cbUUID
+        };
+
+        this.setCookie(COOKIE_NAME, JSON.stringify(cookieData), 5);
+    }
+
+    this.setCookie = function (name, value, days) {
+        var expires = "";
+        if (days) {
+            var date = new Date();
+            date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+            expires = "; expires=" + date.toUTCString();
+        }
+        document.cookie = name + "=" + (value || "") + expires + ";";
+    }
+
+    this.getCookie = function (name) {
+        var nameEQ = name + "=";
+        var ca = document.cookie.split(';');
+        for (var i = 0; i < ca.length; i++) {
+            var c = ca[i];
+            while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+            if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+        }
+        return null;
+    }
+
+    this.clearCookie = function (name) {
+        document.cookie = name + '=;expires=Thu, 01 Jan 1970 00:00:01 GMT;';
+    }
+
+    this.addTransactionFee = function (amount) {
+        var totalOwedWithFee = amount * 1.001;
+        var precision = Math.pow(10, 10);
+        var totalOwedNormalized = Math.ceil(totalOwedWithFee * precision) / precision;
+        return totalOwedNormalized;
     }
 
     this.clearCustomAmount = function () {
@@ -737,7 +1315,10 @@ function requestNetworkDonations(opts) {
     this.initCustomInput = function () {
         function resizable(el, factor) {
             var int = Number(factor);
-            function resize() { el.style.width = ((el.value.length + 1) * int) + 'px' }
+
+            function resize() {
+                el.style.width = ((el.value.length + 1) * int) + 'px'
+            }
             var e = 'keyup,keypress,focus,blur,change'.split(',');
             for (var i in e) el.addEventListener(e[i], resize, false);
             resize();
@@ -753,11 +1334,11 @@ function requestNetworkDonations(opts) {
     }
 
     this.filterMaxAmounts = function () {
-        
+
     }
 
     this.start = function () {
-        this.loadCSS(rootUrl + 'request-donation-styles.css');
+        this.loadCSS(rootUrl + 'request-donation-styles.min.css');
         this.loadCSS('https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,600,700');
         this.initModal();
         this.addClickEvents();
@@ -766,83 +1347,268 @@ function requestNetworkDonations(opts) {
         this.filterMaxAmounts();
 
         //Debugging
-        // this.fetchRates();
-        // donationsModal.open();
+        this.fetchRates();
+        donationsModal.open();
     }
 
     this.fetchContentHtml = function () {
+
+        var html = this.generatePaymentChoicesPageHtml();
+        html += this.generateSelectionPageHtml();
+        html += this.generateConfirmationPageHtml();
+
+        return html;
+    }
+
+    this.generateSelectionPageHtml = function () {
         var first = true;
 
-        var html = '<div class="request-modal-box__header">' +
-        '<span class="request-h1 request-modal-title">Make a donation today</span>' + 
-        '<span class="request-h3 request-modal-subtitle">Powered by Request Network</span>' + 
-        '</div>' +
-        '<div class="request-modal-box__body">' + 
-        '<p class="request-subtitle">How much would you like to donate?</p>' + 
-        '<div class="request-tile-container clearfix">';
+        var html = '<div id="request-selection-panel">' +
+            '<div class="request-modal-box__header">' +
+            '<span class="request-h1 request-modal-title">Make a donation today</span>' +
+            '<span class="request-h3 request-modal-subtitle">Powered by Request Network</span>' +
+            '</div>' +
+            '<div class="request-modal-box__body">' +
+            '<p class="request-subtitle">How much would you like to donate?</p>' +
+            '<div class="request-tile-container clearfix">';
 
         for (var i = 0; i < presetAmounts.length; i++) {
             if (maxDonationAmount == undefined || presetAmounts[i] <= maxDonationAmount) {
                 var activeClassAmounts = selectedAmount == presetAmounts[i] ? 'active' : '';
-                
-                html += '<div class="request-tile-outer request-tile-amount-outer">' + 
-                '<div class="request-tile request-tile-amount ' + activeClassAmounts + '" data-req-amount="' + presetAmounts[i] + '">' + 
-    
-                  '<div class="request-amount">' + 
-                    presetAmounts[i] + '<span class="request-dollar">$</span>' + '</div>' + 
-                '</div>' + 
-              '</div>';
+
+                html += '<div class="request-tile-outer request-tile-amount-outer">' +
+                    '<div class="request-tile request-tile-amount ' + activeClassAmounts + '" data-req-amount="' + presetAmounts[i] + '">' +
+
+                    '<div class="request-amount">' +
+                    '<span class="request-dollar">$</span>' + presetAmounts[i] + '</div>' +
+                    '</div>' +
+                    '</div>';
             }
         }
 
-         html += '<div class="request-tile-outer request-tile-outer-large">' + 
-            '<div id="custom-amount-trigger" class="request-tile">' + 
-              '<span class="request-tile-button-label">' + 
-                'Please type your amount (in $)' + 
-              '</span>' + 
-              '<div class="custom-amount-input-container">' + 
-                  '<span class="request-dollar">$</span>' + 
-                  '<input id="custom-amount-input" type="text">' +
-              '</div>' + 
-              '<span class="request-tick"></span>' + 
-            '</div>' + 
-          '</div>' + 
-        '</div>' + 
-        '<p class="request-subtitle">Select donation currency</p>' + 
-        '<div class="request-tile-container request-tile-currency-container clearfix">';
+        html += '<div class="request-tile-outer request-tile-outer-large">' +
+            '<div id="custom-amount-trigger" class="request-tile">' +
+            '<span class="request-tile-button-label">' +
+            'Please type your amount (in $)' +
+            '</span>' +
+            '<div class="custom-amount-input-container">' +
+            '<span class="request-dollar">$</span>' +
+            '<input id="custom-amount-input" type="text">' +
+            '</div>' +
+            '<span class="request-tick"></span>' +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            '<p class="request-subtitle">Select donation currency</p>' +
+            '<div class="request-tile-container request-tile-currency-container clearfix">';
 
 
         for (var currency in filteredCurrencies) {
             if (filteredCurrencies.hasOwnProperty(currency)) {
                 var activeClass = first ? 'active' : '';
-            
+
                 var currencyLower = currency.toLowerCase();
-    
+
                 html += '<div class="request-tile-outer request-tile-currency-outer">' +
-                  '<div class="request-tile request-tile-currency ' + activeClass + '" data-req-currency="' + currency + '">' +
-                  '<div class="request-tile-payment-icon">' +
-                      '<i class="request-payment-icon request-payment-icon--' + currencyLower + '"></i>' +
-                      '<span class="request-payment-icon-title">' + currency + '</span>' +
-                  '</div>' +
-                  '<span class="request-tick small"></span>' +
-                  '</div>' +
-              '</div>';
-              first = false;
+                    '<div class="request-tile request-tile-currency ' + activeClass + '" data-req-currency="' + currency + '">' +
+                    '<div class="request-tile-payment-icon">' +
+                    '<i class="request-payment-icon request-payment-icon--' + currencyLower + '"></i>' +
+                    '<span class="request-payment-icon-title">' + currency + '</span>' +
+                    '</div>' +
+                    '<span class="request-tick small"></span>' +
+                    '</div>' +
+                    '</div>';
+                first = false;
             }
         }
 
 
         html += '</div>' +
-       '<div class="request-transaction-info-block">' +
+            '<div class="request-transaction-info-block">' +
             '<p class="mb-1">Conversion rate:' +
             '<strong id="request-donations-rate"></strong>' +
             '</p>' +
             '<p class="mt-0 mb-0">Total to donate:' +
-            '<strong id="request-donations-total"></strong>' +
+            '<strong class="request-donations-total"></strong>' +
             '</p>' +
-        '</div>' +
-        '</div>';
+            '</div>' +
+            '</div>' +
+            '</div>';
 
         return html;
+    }
+
+    this.generatePaymentChoicesPageHtml = function () {
+
+        var html = '<div id="request-payment-panel" class="hidden">' +
+            '<div class="request-modal-box__header">' +
+            '<span id="request-modal-return-arrow"></span>' +
+            '<span class="request-h1 request-modal-title">Make a donation today</span>' +
+            '<span class="request-h3 request-modal-subtitle">Powered by Request Network</span>' +
+            '</div>' +
+            '<div id="request-payment-choices" class="request-modal-box__body">' +
+            '<p class="request-subtitle mb-3">Waiting on payment</p>' +
+            '<div class="request-boxed mb-5">' +
+            '<div class="request-donations-total-fiat request-lg-heading"></div>' +
+            '<div class="request-donations-total"></div>' +
+            '<div class="request-status-tag">Pending</div>' +
+            '<div>' +
+            '<div id="request-qr-detection-info" class="request-subtitle text-center hidden">Detecting payment<i id="request-qr-spinner" class="spinner"></i></div>' +
+            '</div>' +
+            '</div>' +
+            '<div id="request-payment-buttons">' +
+            '<div class="request-subtitle rq-dark text-center">Send your payment using any of the following methods</div>' +
+            this.generatePaymentButtonsHtml() +
+            '</div>' +
+            '<div id="request-qr-modal" class="hidden">' +
+            '<div class="req-modal-popup-close-button" id="request-qr-modal-close">×</div>' +
+            '<div class="request-qr-code-holder">' +
+            '<img src="data:image/png;base64,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" id="request-qr-code"/>' +
+            '<button id="request-qr-code-payment-made" class="request-btn request-btn--success request-btn--small">Payment made</button>' +
+            '</div>' +
+            '</div>' +
+
+            '<div id="ledger-erc-modal" class="hidden">' +
+            '<div class="req-modal-popup-close-button" id="ledger-erc-modal-close">×</div>' +
+            '<div class="request-ledger-erc-holder">' +
+            '<div class="request-ledger-erc-intro"><p>Your will now be prompted for two transactions on your ledger.</p></div>' +
+            '<div id="request-ledger-erc-step1" class="request-ledger-erc-step solid">' +
+            '<div class="ledger-erc-modal-checkmark-holder"><div class="ledger-erc-modal-spinner spinner"></div><div class="ledger-erc-modal-checkmark"></div></div>' +
+            '<h2>Step 1: Approve ERC20 spend.</h2>' +
+            '</div>' +
+
+            '<div id="request-ledger-erc-step2" class="request-ledger-erc-step">' +
+            '<div class="ledger-erc-modal-checkmark-holder"><div class="ledger-erc-modal-spinner spinner"></div><div class="ledger-erc-modal-checkmark"></div></div>' +
+            '<h2>Step 2: Make payment.</h2>' +
+            '</div>' +
+
+            '</div>' +
+            '</div>' +
+
+            '</div>' +
+            '</div>';
+
+        return html;
+    }
+
+    this.generatePaymentButtonsHtml = function () {
+        var buttonsHtml = this.generatePaymentButtonHtml('metamask', 'Use MetaMask');
+        // https is needed for the ledger integration
+        if (location.protocol == 'https:') {
+            buttonsHtml += this.generatePaymentButtonHtml('ledger', 'Connect Ledger');
+        }
+        buttonsHtml += this.generatePaymentButtonHtml('qr', 'Pay via QR Code');
+        buttonsHtml += this.generateMoreInfoButtonHtml('Still not sure?');
+
+        return buttonsHtml;
+    }
+
+    this.generateMoreInfoButtonHtml = function (label) {
+        return '<div class="request-n-payment-button-outer">' +
+            '<a target="_blank" href="https://app.tettra.co/teams/request-network/pages/get-started-request-donations" class="request-n-payment-button">' +
+            '<div class="request-payment-icon request-payment-icon--confused"></div>' +
+            '<span class="request-n-payment-button-label request-subtitle rq-dark"> ' + label + ' </span>' +
+            '</a>' +
+            '</div>';
+    }
+
+    this.generatePaymentButtonHtml = function (id, label) {
+        return '<div class="request-n-payment-button-outer">' +
+            '<div id="request-n-payment-button-' + id + '" class="request-n-payment-button">' +
+            '<div class="request-payment-icon request-payment-icon--' + id + '"></div>' +
+            '<span class="request-n-payment-button-label request-subtitle rq-dark"> ' + label + ' </span>' +
+            '</div>' +
+            '</div>';
+    }
+
+    this.generateConfirmationPageHtml = function () {
+
+        var html = '<div id="request-confirmation-panel" class="hidden">' +
+            '<div class="request-modal-box__header">' +
+            '<span class="request-h1 request-modal-title">Thank you</span>' +
+            '<span class="request-h3 request-modal-subtitle">Your support goes a long way towards making a difference</span>' +
+            '</div>' +
+            '<div class="request-modal-box__body">' +
+            '<p class="request-subtitle mb-3">Your receipt<span href="#" id="request-receipt-date" class="right">dd/mm/YYYY</span></p>' +
+            '<div class="request-boxed mb-5">' +
+            '<div class="request-donations-total-fiat request-lg-heading"></div>' +
+            '<div class="request-donations-total"></div>' +
+            '<div id="request-transaction-status-tag" class="request-status-tag">Processing<i class="spinner"></i></div>' +
+            '</div>' +
+            '<div class="request-subtitle rq-dark text-center mb-2">Your transaction has been successfully processed</div>' +
+            '<div class="request-subtitle text-center mb-3">' +
+            '<a target="_blank" id="request-save-receipt-link" class="rq-light" href="#">Save your receipt</a>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+
+        return html;
+    }
+
+    this.setReceiptDate = function () {
+        var today = new Date();
+        var dd = today.getDate();
+        var mm = today.getMonth() + 1; //January is 0!
+
+        var yyyy = today.getFullYear();
+        if (dd < 10) {
+            dd = '0' + dd;
+        }
+        if (mm < 10) {
+            mm = '0' + mm;
+        }
+        var today = dd + '/' + mm + '/' + yyyy;
+
+        receiptDate.innerHTML = today;
+        receiptDateValue = today;
+    }
+
+    this.setSaveReceiptLink = function (txid) {
+        var currentBaseUrl = [location.protocol, '//', location.host].join('');
+        var link = 'https://donations.request.network/thank-you?owed=' + totalOwed + '&currency=' + selectedCurrency + '&fiat=' + selectedAmount + '&redirect=' + currentBaseUrl + '&network=' + network + '&txid=' + txid;
+        saveReceiptLink.href = link;
+    }
+
+    this.getRequestContractAddress = function () {
+        if (network && network == 4) {
+            return requestContractAddressRinkeby;
+        } else {
+            return requestContractAddressMainnet;
+        }
+    }
+
+    this.getWeb3InstanceInfura = function () {
+        var infura_base = "https://mainnet.infura.io";
+        if (network && network == 4) {
+            infura_base = "https://rinkeby.infura.io";
+        }
+        var web3 = new Web3(new Web3.providers.HttpProvider(infura_base));
+        return web3;
+    }
+
+    this.checkTxidStatus = function (txid) {
+        var web3 = this.getWeb3InstanceInfura();
+
+        var delayBeforeChecks = 0; //ms
+        //We do this as Rinkeby transactions confirm almost instantly. 
+        if (network == 4) {
+            delayBeforeChecks = 5000; //ms 
+        }
+        setTimeout(function () {
+            checkTxidInterval = setInterval(function () {
+                that.hasBeenMined(txid, web3);
+            }, 2000);
+        }, delayBeforeChecks)
+    }
+
+    this.hasBeenMined = function (txid, provider) {
+        var transaction = provider.eth.getTransaction(txid);
+
+        if (transaction && transaction.blockHash && transaction.blockNumber != null) {
+            requestTransactionStatusTag.innerHTML = 'Confirmed';
+            requestTransactionStatusTag.classList.add('success');
+            clearInterval(checkTxidInterval);
+            that.clearCookie(COOKIE_NAME);
+        }
     }
 }

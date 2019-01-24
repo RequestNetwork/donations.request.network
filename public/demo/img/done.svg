@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="60px" height="47px" viewBox="0 0 60 47" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <!-- Generator: Sketch 50.2 (55047) - http://www.bohemiancoding.com/sketch -->
+    <title>checked (1)</title>
+    <desc>Created with Sketch.</desc>
+    <defs>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="100%" id="linearGradient-1">
+            <stop stop-color="#1C81F2" offset="0%"></stop>
+            <stop stop-color="#124176" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="materials" stroke="none" stroke-width="1" fill="none" fill-rule="evenodd">
+        <g id="Desktop" transform="translate(-384.000000, -483.000000)" fill="url(#linearGradient-1)" fill-rule="nonzero">
+            <g id="checked-(1)" transform="translate(384.000000, 483.000000)">
+                <path d="M0.692307692,25.3846154 C0.230769231,24.9230769 0,24.2307692 0,23.7692308 C0,23.3076923 0.230769231,22.6153846 0.692307692,22.1538462 L3.92307692,18.9230769 C4.84615385,18 6.23076923,18 7.15384615,18.9230769 L7.38461538,19.1538462 L20.0769231,32.7692308 C20.5384615,33.2307692 21.2307692,33.2307692 21.6923077,32.7692308 L52.6153846,0.692307692 L52.8461538,0.692307692 C53.7692308,-0.230769231 55.1538462,-0.230769231 56.0769231,0.692307692 L59.3076923,3.92307692 C60.2307692,4.84615385 60.2307692,6.23076923 59.3076923,7.15384615 L22.3846154,45.4615385 C21.9230769,45.9230769 21.4615385,46.1538462 20.7692308,46.1538462 C20.0769231,46.1538462 19.6153846,45.9230769 19.1538462,45.4615385 L1.15384615,26.0769231 L0.692307692,25.3846154 Z" id="Shape"></path>
+            </g>
+        </g>
+    </g>
+</svg>

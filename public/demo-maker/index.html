@@ -19,8 +19,8 @@
 
   <meta charset="utf-8">
   <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
-  <title>MakerDAO - Stability for the blockchain</title>
   <meta name="robots" content="noindex, nofollow">
+  <title>MakerDAO - Stability for the blockchain</title>
   <meta name="description" content="Dai is a decentralized digital currency with stable value; the next step in the evolution of money.">
   <meta name="viewport" content="user-scalable=no, width=device-width, initial-scale=1, maximum-scale=1">
   <meta name="keywords" content="digital currency, decentralized stablecoin, decentralized money, stable token, stable coin, Stablecoin, stabletoken, stable digital currency, international money, stable store of value, ethereum, blockchain">
@@ -348,11 +348,12 @@
         </button>
 
 
-        <script type="text/javascript" src="https://donations.request.network/donate.js"></script>
+        <script type="text/javascript" src="https://donations-v2.request.network/donate.js"></script>
         <script type="text/javascript">
           var requestDonations = new requestNetworkDonations({
             address: '0x6e347bf41ee62109a76b29e859a58d2bd3374e88',
-            currencies: ['ETH', 'REQ', 'DAI', 'OMG', 'KNC', 'DGX', 'KIN', 'BNB', 'BAT', 'ZRX', 'LINK']
+            max_amount: 200,
+            currencies: ['ETH', 'REQ', 'DAI', 'OMG', 'KNC', 'DGX', 'BNB', 'BAT', 'ZRX', 'LINK']
           });
           requestDonations.start();
         </script>
@@ -361,11 +362,34 @@
     </div>
   </footer>
 
+  <div class="grey-but-req"></div>
+
   <script src="ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
   <script src="cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
   <script>window.jQuery || document.write('<script src="js/vendor/jquery-1.11.2.min.js"><\/script>')</script>
 
   <script src="js/plugins.js"></script>
+  <!-- <script src="js/main30f4.js?v=3"></script> -->
+
+  <style>
+    body {
+      position: relative;
+    }
+    #jumbo {
+      z-index: 0;
+    }
+    .grey-but-req {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.6);
+    }
+  </style>
+  <script>
+    window.scrollTo(0,document.body.scrollHeight);
+  </script>
 
 </body>
 
