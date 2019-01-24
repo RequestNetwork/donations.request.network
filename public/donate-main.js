@@ -466,7 +466,7 @@ function requestNetworkDonations(opts) {
 
     opts = Object.assign(defaults, opts);
 
-    var rootUrl = "https://donations-v2.request.network/";
+    var rootUrl = "https://donations.request.network/";
 
     that = this;
 
@@ -826,7 +826,8 @@ function requestNetworkDonations(opts) {
                 that.loadJS(rootUrl + 'js/qr.min.js');
                 that.generateRequest();
                 that.setReceiptDate();
-                if (selectedCurrency != 'ETH') {
+                //Force hide of QR code on Mainnet until CacheDB is upto date
+                if (selectedCurrency != 'ETH' || network == 1) {
                     qrButton.parentNode.classList.add('hidden');
                     // that.loadJS(rootUrl + 'js/artifacts/0.0.2/all.js');
                 } else {
@@ -1337,7 +1338,7 @@ function requestNetworkDonations(opts) {
     }
 
     this.start = function () {
-        this.loadCSS(rootUrl + 'request-donation-styles.css');
+        this.loadCSS(rootUrl + 'request-donation-styles.min.css');
         this.loadCSS('https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,600,700');
         this.initModal();
         this.addClickEvents();
