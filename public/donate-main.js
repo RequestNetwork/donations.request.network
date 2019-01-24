@@ -1347,8 +1347,8 @@ function requestNetworkDonations(opts) {
         this.filterMaxAmounts();
 
         //Debugging
-        this.fetchRates();
-        donationsModal.open();
+        // this.fetchRates();
+        // donationsModal.open();
     }
 
     this.fetchContentHtml = function () {
