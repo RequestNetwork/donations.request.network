@@ -596,7 +596,7 @@ function requestNetworkDonations(opts) {
         qrModalPaymentMade = document.getElementById('request-qr-code-payment-made');
         qrPaymentDetectionText = document.getElementById('request-qr-detection-info');
 
-        if (network == 4) {
+        if (ledgerButton && network == 4) {
             ledgerButton.classList.add('disabled');
         }
 
@@ -867,89 +867,107 @@ function requestNetworkDonations(opts) {
 
         metamaskButton.addEventListener('click', function () {
 
-            if (typeof web3 !== 'undefined') {
+            if (typeof window.ethereum !== 'undefined') {
 
-                web3.version.getNetwork((err, netId) => {
-                    if (netId != network) {
-                        if (network == 4) {
-                            alert('Please change your MetaMask network to Rinkeby.');
-                        } else {
-                            alert('Please change your MetaMask network to Mainnet.');
-                        }
+                ethereum.enable()
+                .catch(function (reason) {
+                    if (reason === 'User rejected provider access') {
+                      // The user didn't want to sign in!
+                      alert('You must approve access to pay via MetaMask');
                     } else {
-                        if (web3.eth.accounts[0] != null) {
-                            window.web3 = new Web3(web3.currentProvider);
+                      // This shouldn't happen, so you might want to log this...
+                      alert('There was an issue signing you in.');
+                    }
+                  })
+                  .then(function (accounts) {
+                      if (accounts && accounts.length > 0) {
+                          var account = accounts[0];
 
-                            var totalOwedWei = 0;
-
-                            if (selectedCurrency == 'ETH') {
-                                var totalOwedWithFee = that.addTransactionFee(totalOwed);
-                                totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
-
-                                web3.eth.sendTransaction({
-                                    from: web3.eth.accounts[0],
-                                    to: that.getRequestContractAddress(),
-                                    value: totalOwedWei,
-                                    data: transactionData
-                                }, function (error, txid) {
-                                    if (!error && txid != undefined) {
-                                        selectionPanel.classList.add('hidden');
-                                        paymentPanel.classList.add('hidden');
-                                        confirmationPanel.classList.remove('hidden');
-                                        that.setSaveReceiptLink(txid);
-                                        that.savePaymentCookie(txid);
-                                        that.checkTxidStatus(txid);
-                                    }
-                                });
+                          web3.version.getNetwork((err, netId) => {
+                            if (netId != network) {
+                                if (network == 4) {
+                                    alert('Please change your MetaMask network to Rinkeby.');
+                                } else {
+                                    alert('Please change your MetaMask network to Mainnet.');
+                                }
                             } else {
-                                var erc20Abi = web3.eth.contract(JSON.parse(erc20).abi);
-                                var erc20AbiContract = erc20Abi.at(that.getCurrencyAddress(selectedCurrency).main);
-
-                                var erc20AbiItem = web3.eth.contract(JSON.parse(that.fetchArtifactInfo(selectedCurrency)).abi);
-                                var erc20Contract = erc20AbiItem.at(that.getCurrencyAddress(selectedCurrency).erc20);
-
-                                erc20AbiContract.balanceOf(web3.eth.accounts[0], function (err, res) {
-                                    if (!err) {
-                                        if (res.c[0] >= totalOwed) {
-                                            erc20Contract.collectEstimation(signedResponse.expectedAmount, function (err, res) {
-
-                                                erc20AbiContract.approve(that.getCurrencyAddress(selectedCurrency).erc20, 999900000000000000000000000, function (error) {
-                                                    if (!error) {
-
-                                                        web3.eth.sendTransaction({
-                                                            from: web3.eth.accounts[0],
-                                                            to: that.getCurrencyAddress(selectedCurrency).erc20,
-                                                            value: res.c[0],
-                                                            data: transactionData
-                                                        }, function (error, txid) {
-                                                            if (!error && txid != undefined) {
-                                                                selectionPanel.classList.add('hidden');
-                                                                paymentPanel.classList.add('hidden');
-                                                                confirmationPanel.classList.remove('hidden');
-                                                                that.setSaveReceiptLink(txid);
-                                                                that.savePaymentCookie(txid);
-                                                                that.checkTxidStatus(txid);
+                                if (account != null) {
+                                    window.web3 = new Web3(web3.currentProvider);
+        
+                                    var totalOwedWei = 0;
+        
+                                    if (selectedCurrency == 'ETH') {
+                                        var totalOwedWithFee = that.addTransactionFee(totalOwed);
+                                        totalOwedWei = web3.toWei(totalOwedWithFee, 'ether');
+        
+                                        web3.eth.sendTransaction({
+                                            from: account,
+                                            to: that.getRequestContractAddress(),
+                                            value: totalOwedWei,
+                                            data: transactionData
+                                        }, function (error, txid) {
+                                            if (!error && txid != undefined) {
+                                                selectionPanel.classList.add('hidden');
+                                                paymentPanel.classList.add('hidden');
+                                                confirmationPanel.classList.remove('hidden');
+                                                that.setSaveReceiptLink(txid);
+                                                that.savePaymentCookie(txid);
+                                                that.checkTxidStatus(txid);
+                                            }
+                                        });
+                                    } else {
+                                        var erc20Abi = web3.eth.contract(JSON.parse(erc20).abi);
+                                        var erc20AbiContract = erc20Abi.at(that.getCurrencyAddress(selectedCurrency).main);
+        
+                                        var erc20AbiItem = web3.eth.contract(JSON.parse(that.fetchArtifactInfo(selectedCurrency)).abi);
+                                        var erc20Contract = erc20AbiItem.at(that.getCurrencyAddress(selectedCurrency).erc20);
+        
+                                        erc20AbiContract.balanceOf(account, function (err, res) {
+                                            if (!err) {
+                                                if (res.c[0] >= totalOwed) {
+                                                    erc20Contract.collectEstimation(signedResponse.expectedAmount, function (err, res) {
+        
+                                                        erc20AbiContract.approve(that.getCurrencyAddress(selectedCurrency).erc20, 999900000000000000000000000, function (error) {
+                                                            if (!error) {
+        
+                                                                web3.eth.sendTransaction({
+                                                                    from: account,
+                                                                    to: that.getCurrencyAddress(selectedCurrency).erc20,
+                                                                    value: res.c[0],
+                                                                    data: transactionData
+                                                                }, function (error, txid) {
+                                                                    if (!error && txid != undefined) {
+                                                                        selectionPanel.classList.add('hidden');
+                                                                        paymentPanel.classList.add('hidden');
+                                                                        confirmationPanel.classList.remove('hidden');
+                                                                        that.setSaveReceiptLink(txid);
+                                                                        that.savePaymentCookie(txid);
+                                                                        that.checkTxidStatus(txid);
+                                                                    }
+                                                                });
+                                                            } else {
+                                                                alert(error);
                                                             }
                                                         });
-                                                    } else {
-                                                        alert(error);
-                                                    }
-                                                });
-                                            });
-                                        } else {
-                                            alert('You don\'t have enough ' + selectedCurrency + ' to make this donation, please change your account.');
-                                        }
-                                    } else {
-                                        alert(err);
+                                                    });
+                                                } else {
+                                                    alert('You don\'t have enough ' + selectedCurrency + ' to make this donation, please change your account.');
+                                                }
+                                            } else {
+                                                alert(err);
+                                            }
+                                        });
                                     }
-                                });
+        
+                                } else {
+                                    alert('Please login to MetaMask');
+                                }
                             }
-
-                        } else {
-                            alert('Please login to MetaMask');
-                        }
-                    }
-                });
+                        });
+                      } else {
+                          console.log("No MetaMask wallet created");
+                      }
+                  });
             } else {
                 alert('You don\'t have MetaMask installed');
             }
