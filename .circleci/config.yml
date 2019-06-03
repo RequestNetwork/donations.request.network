@@ -8,6 +8,10 @@ jobs:
     docker: 
       - image: circleci/python:3.7
     parameters:
+      google-project-id:
+        default: GOOGLE_PROJECT_ID
+        description: The Google project ID to connect with via the gcloud CLI
+        type: env_var_name
       image: 
         type: string
         description: A docker image name
@@ -24,9 +28,9 @@ jobs:
     steps:
       - gcr/gcr-auth
       - run: 
-          name: "Add << parameters.target-tag >> tag to << parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>:<< parameters.source-tag >>"
+          name: Add << parameters.target-tag >> tag to << parameters.registry-url >>/$<< parameters.google-project-id >>/<< parameters.image >>:<< parameters.source-tag >>
           command: |
-            IMAGE_ROOT="<< parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>"
+            IMAGE_ROOT=<< parameters.registry-url >>/$<< parameters.google-project-id >>/<< parameters.image >>
             gcloud container images add-tag --quiet "${IMAGE_ROOT}:<< parameters.source-tag >>" "${IMAGE_ROOT}:<< parameters.target-tag >>"
 
 workflows:
