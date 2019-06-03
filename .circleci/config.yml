@@ -25,9 +25,9 @@ jobs:
       - gcr/gcr-auth
       - run: 
           name: "Add << parameters.target-tag >> tag to << parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>:<< parameters.source-tag >>"
-          command: gcloud container images add-tag --quiet \
-            "<< parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>:<< parameters.source-tag >>" \
-            "<< parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>:<< parameters.target-tag >>" 
+          command: |
+            IMAGE_ROOT="<< parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>"
+            gcloud container images add-tag --quiet "${IMAGE_ROOT}:<< parameters.source-tag >>" "${IMAGE_ROOT}:<< parameters.target-tag >>"
 
 workflows:
   version: 2
