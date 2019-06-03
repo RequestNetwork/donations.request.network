@@ -1,15 +1,47 @@
 version: 2.1
 
 orbs:
-  gcp-gcr: circleci/gcp-gcr@0.5
+  gcr: circleci/gcp-gcr@0.5
+
+jobs:
+  tag:
+    docker: 
+      - image: circleci/python:3.7
+    parameters:
+      image: 
+        type: string
+        description: A docker image name
+      registry-url:
+        default: gcr.io
+        description: 'The GCR registry URL from ['''', us, eu, asia].gcr.io'
+        type: string
+      source-tag:
+        description: An existing docker image tag
+        type: string
+      target-tag:
+        description: A new docker image tag
+        type: string
+    steps:
+      - gcr/gcr-auth
+      - run: 
+          name: "Add << parameters.target-tag >> tag to << parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>:<< parameters.source-tag >>"
+          command: gcloud container images add-tag --quiet \
+            "<< parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>:<< parameters.source-tag >>" \
+            "<< parameters.registry-url >>/${GOOGLE_PROJECT_ID}/<< parameters.image >>:<< parameters.target-tag >>" 
 
 workflows:
   version: 2
   build:
     jobs:
-      - gcp-gcr/build-and-push-image:
-          name: "Build-Push"
+      - gcr/build-and-push-image:
+          name: build-push
           image: donations
           registry-url: eu.gcr.io
           tag: ${CIRCLE_SHA1:0:7}
-
+      - tag:
+          image: donations
+          registry-url: eu.gcr.io
+          source-tag: ${CIRCLE_SHA1:0:7}
+          target-tag: latest
+          requires: 
+            - build-push
