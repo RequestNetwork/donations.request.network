@@ -1,148 +1,51 @@
-version: 2
+version: 2.1
 
-aliases:
-  - docker_image: &docker_image
-      image: docker
-  - python_image: &python_image
-      image: circleci/python:2.7-jessie
-
-reusable_tasks: 
-  deploy_base: &deploy_base 
-    docker:
-      - *python_image
-    working_directory: ~/repo
-    steps:
-      - attach_workspace:
-          at: ~/repo
-      - run:
-          name: Install AWS CLI
-          command: sudo pip install awscli
-      - run:
-          name: Install aws-iam-authenticator
-          command: |
-            curl -o aws-iam-authenticator https://amazon-eks.s3-us-west-2.amazonaws.com/1.10.3/2018-07-26/bin/linux/amd64/aws-iam-authenticator
-            chmod +x ./aws-iam-authenticator
-            sudo cp ./aws-iam-authenticator /usr/bin/aws-iam-authenticator && export PATH=/usr/bin:$PATH
-            aws-iam-authenticator help
-      - run:
-          name: Install Kubectl
-          command: |
-            sudo apt-get update && sudo apt-get install -y apt-transport-https
-            curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
-            echo "deb http://apt.kubernetes.io/ kubernetes-xenial main" | sudo tee -a /etc/apt/sources.list.d/kubernetes.list
-            sudo apt-get update
-            sudo apt-get install -y kubectl
-            kubectl help
-      - run:
-          name: Bootstrap Kubernetes cluster configuration
-          command: aws eks update-kubeconfig --name ${AWS_CLUSTER_NAME:=apps} --region ${AWS_REGION:=eu-west-1}
-      - run:
-          name: Update Image
-          command: |
-            read -r IMG < image_id.txt
-            echo "Namespace=$NAMESPACE"
-            echo "Image=$IMG"
-            kubectl set image --namespace=$NAMESPACE deployment.apps/donations-deployment donations=$IMG
+orbs:
+  gcr: circleci/gcp-gcr@0.5
 
 jobs:
-  validate-env:
-    docker:
-      - *docker_image
+  tag:
+    docker: 
+      - image: circleci/python:3.7
+    parameters:
+      google-project-id:
+        default: GOOGLE_PROJECT_ID
+        description: The Google project ID to connect with via the gcloud CLI
+        type: env_var_name
+      image: 
+        type: string
+        description: A docker image name
+      registry-url:
+        default: gcr.io
+        description: 'The GCR registry URL from ['''', us, eu, asia].gcr.io'
+        type: string
+      source-tag:
+        description: An existing docker image tag
+        type: string
+      target-tag:
+        description: A new docker image tag
+        type: string
     steps:
-      - run:
-          name: Check DOCKER_REGISTRY
-          command: '[[ -z $DOCKER_REGISTRY ]] && echo "DOCKER_REGISTRY not set" && exit 1 || echo "OK" '
-      - run:
-          name: Check DOCKER_IMAGE_NAME
-          command: '[[ -z $DOCKER_IMAGE_NAME ]] && echo "DOCKER_IMAGE_NAME not set" &&  exit 1 || echo "OK" '
-  build:
-    docker:
-      - *docker_image
-    working_directory: ~/repo
-    steps:
-      - checkout
-      - setup_remote_docker
-      - run: docker build -t $DOCKER_IMAGE_NAME .
-      - run: |
-          rm -f docker_image.tar
-          docker save -o docker_image.tar $DOCKER_IMAGE_NAME
-      - persist_to_workspace:
-          root: ~/repo
-          paths:
-            - ./docker_image.tar
-            - ./package.json
-  push:
-    docker:
-      - *python_image
-    working_directory: ~/repo
-    steps:
-      - attach_workspace:
-          at: ~/repo
-      - setup_remote_docker
-      - run:
-          name: Load Docker image
-          command: docker load -i docker_image.tar
-      - run:
-          name: Install awscli
-          command: sudo pip install awscli
-      - run:
-          name: Login to registry
-          command: aws ecr get-login --region ${AWS_REGION:=eu-west-1} --no-include-email | sh
-      - run:
-          name: Tag & Push image to registry
+      - gcr/gcr-auth
+      - run: 
+          name: Add << parameters.target-tag >> tag to << parameters.registry-url >>/$<< parameters.google-project-id >>/<< parameters.image >>:<< parameters.source-tag >>
           command: |
-            APP_VERSION=$(cat package.json | jq '.version' --raw-output)
-            VERSION="${APP_VERSION}.${CIRCLE_BUILD_NUM}"
-            IMG_NAME=$DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:$VERSION
-            echo $IMG_NAME
-            docker tag $DOCKER_IMAGE_NAME $IMG_NAME
-            docker push $IMG_NAME
-            docker tag $DOCKER_IMAGE_NAME $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:latest
-            docker push $DOCKER_REGISTRY/$DOCKER_IMAGE_NAME:latest
-            echo $IMG_NAME > image_id.txt
-            echo "$IMG_NAME pushed"
-      - persist_to_workspace:
-          root: ~/repo
-          paths: 
-            - ./image_id.txt
-  deploy-staging:
-    <<: *deploy_base
-    environment:
-      NAMESPACE: staging
-      
-  deploy-prod:
-    <<: *deploy_base
-    environment:
-      NAMESPACE: production      
-      
+            IMAGE_ROOT=<< parameters.registry-url >>/$<< parameters.google-project-id >>/<< parameters.image >>
+            gcloud container images add-tag --quiet "${IMAGE_ROOT}:<< parameters.source-tag >>" "${IMAGE_ROOT}:<< parameters.target-tag >>"
 
 workflows:
   version: 2
   build:
     jobs:
-      - validate-env
-      - build:
-          requires:
-            - validate-env
-      - push:
-          requires:
-            - build
-          filters:
-            branches:
-              only: 
-                - master
-                - staging
-      - deploy-staging:
-          requires:
-            - push
-          filters:
-            branches:
-              only: 
-                - staging
-      - deploy-prod:
-          requires:
-            - push
-          filters:
-            branches:
-              only: 
-                - master
+      - gcr/build-and-push-image:
+          name: build-push
+          image: donations
+          registry-url: eu.gcr.io
+          tag: ${CIRCLE_SHA1:0:7}
+      - tag:
+          image: donations
+          registry-url: eu.gcr.io
+          source-tag: ${CIRCLE_SHA1:0:7}
+          target-tag: latest
+          requires: 
+            - build-push
