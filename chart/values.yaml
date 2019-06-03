@@ -1,0 +1,29 @@
+image:
+  #  registry: 
+  repository: donations
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 80
+
+config: []
+  #  - name: AWS_ACCESS_KEY_ID
+  #  value: 
+  #- name: AWS_SECRET_ACCESS_KEY
+  #  value: 
+
+ingress:
+  enabled: true
+  annotations: 
+     kubernetes.io/ingress.class: nginx
+     kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: donations.gcp.request.network
+      paths: 
+        - /
+  tls: 
+   - secretName: donations-tls
+     hosts:
+       - donations.gcp.request.network
