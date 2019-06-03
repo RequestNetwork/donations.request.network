@@ -1,37 +1,7 @@
 version: 2.1
 
 orbs:
-  gcr: circleci/gcp-gcr@0.5
-
-jobs:
-  tag:
-    docker: 
-      - image: circleci/python:3.7
-    parameters:
-      google-project-id:
-        default: GOOGLE_PROJECT_ID
-        description: The Google project ID to connect with via the gcloud CLI
-        type: env_var_name
-      image: 
-        type: string
-        description: A docker image name
-      registry-url:
-        default: gcr.io
-        description: 'The GCR registry URL from ['''', us, eu, asia].gcr.io'
-        type: string
-      source-tag:
-        description: An existing docker image tag
-        type: string
-      target-tag:
-        description: A new docker image tag
-        type: string
-    steps:
-      - gcr/gcr-auth
-      - run: 
-          name: Add << parameters.target-tag >> tag to << parameters.registry-url >>/$<< parameters.google-project-id >>/<< parameters.image >>:<< parameters.source-tag >>
-          command: |
-            IMAGE_ROOT=<< parameters.registry-url >>/$<< parameters.google-project-id >>/<< parameters.image >>
-            gcloud container images add-tag --quiet "${IMAGE_ROOT}:<< parameters.source-tag >>" "${IMAGE_ROOT}:<< parameters.target-tag >>"
+  gcr: circleci/gcp-gcr@0.6
 
 workflows:
   version: 2
@@ -42,7 +12,8 @@ workflows:
           image: donations
           registry-url: eu.gcr.io
           tag: ${CIRCLE_SHA1:0:7}
-      - tag:
+      - gcr/add-image-tag:
+          name: tag-latest
           image: donations
           registry-url: eu.gcr.io
           source-tag: ${CIRCLE_SHA1:0:7}
