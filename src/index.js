@@ -15,6 +15,14 @@ app.server = http.createServer(app);
 app.use(bodyParser.json());
 app.set("view engine", "ejs");
 
+if (process.env.HOME_REDIRECT) {
+  app.get("/", (req, res, next) => {
+    res.redirect(301, process.env.HOME_REDIRECT);
+  });
+  app.get("/index.html", (req, res, next) => {
+    res.redirect(301, process.env.HOME_REDIRECT);
+  });
+}
 app.use("/demo", express.static("public/demo"));
 app.use("/demo2", express.static("public/demo2"));
 app.use("/makerdemo", express.static("public/demo-maker"));
