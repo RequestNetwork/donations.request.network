@@ -20,16 +20,16 @@ ingress:
      kubernetes.io/ingress.class: nginx
      kubernetes.io/tls-acme: "true"
   hosts:
-    - host: donations.gcp.request.network
-      paths: 
-        - /
+    # - host: donations.gcp.request.network
+    #   paths: 
+    #     - /
     - host: donations.request.network
       paths: 
         - /
   tls: 
-   - secretName: donations-gcp-tls
-     hosts:
-       - donations.gcp.request.network
+  #  - secretName: donations-gcp-tls
+  #    hosts:
+  #      - donations.gcp.request.network
    - secretName: donations-tls
      hosts:
        - donations.request.network
